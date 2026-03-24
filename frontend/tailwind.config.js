@@ -11,6 +11,12 @@ export default {
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
       colors: {
+        "primary": "#1773cf",
+        "background-light": "#f6f7f8",
+        "background-dark": "#111921",
+        "panel-dark": "#1a2632",
+        "border-accent": "#344d65",
+        "teal-accent": "#2dd4bf",
         brand: {
           50:  '#f0f9ff',
           400: '#38bdf8',
