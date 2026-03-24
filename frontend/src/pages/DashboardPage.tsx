@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface Summary {
   total: number;
@@ -10,6 +11,7 @@ interface Summary {
 const DashboardPage: React.FC = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [assets, setAssets] = useState<any[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Fetch summary and assets from backend (using existing logic)
@@ -171,7 +173,12 @@ const DashboardPage: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-4">
-              <button className="px-4 py-2 bg-white text-primary rounded font-bold text-xs hover:bg-slate-100 transition-colors">START NEW SCAN</button>
+              <button 
+                onClick={() => navigate('/scan')}
+                className="px-4 py-2 bg-white text-primary rounded font-bold text-xs hover:bg-slate-100 transition-colors"
+              >
+                START NEW SCAN
+              </button>
               <button className="px-4 py-2 bg-primary/20 border border-white/30 rounded font-bold text-xs hover:bg-white/10 transition-colors">CONFIGURE PARAMETERS</button>
             </div>
           </div>

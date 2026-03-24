@@ -1,0 +1,139 @@
+import React from 'react';
+
+const RiskAnalysisPage: React.FC = () => {
+  return (
+    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-background-dark/50 p-8 font-display">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Risk Header & Categories */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Asset Risk Profile</h2>
+            <p className="text-slate-500 text-sm mt-1">Snapshot of vulnerabilities and configuration posture for <span className="text-primary underline">prod-db-cluster-01</span></p>
+          </div>
+          <div className="flex gap-2 text-slate-900 dark:text-slate-100">
+            <div className="flex items-center gap-2 px-3 py-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs font-bold uppercase tracking-wider">Low</div>
+            <div className="flex items-center gap-2 px-3 py-1 rounded bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 text-xs font-bold uppercase tracking-wider">Med</div>
+            <div className="flex items-center gap-2 px-3 py-1 rounded bg-orange-500/10 border border-orange-500/30 text-orange-500 text-xs font-bold uppercase tracking-wider">High</div>
+            <div className="flex items-center gap-2 px-3 py-1 rounded bg-red-500 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-red-500/20 ring-2 ring-red-500 ring-offset-2 ring-offset-background-dark">Crit</div>
+          </div>
+        </div>
+
+        {/* Main Risk Card Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Score Card */}
+          <div className="lg:col-span-1 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent pointer-events-none"></div>
+            <h3 className="text-sm font-bold uppercase text-slate-500 mb-8 tracking-widest">Aggregate Score</h3>
+            {/* Circular Meter */}
+            <div className="relative w-48 h-48">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle className="text-slate-200 dark:text-slate-700" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" strokeWidth="10"></circle>
+                <circle className="text-red-500" cx="50" cy="50" fill="transparent" r="40" stroke="currentColor" strokeWidth="10" strokeDasharray="251.2" strokeDashoffset="37.68" strokeLinecap="round"></circle>
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-5xl font-black text-red-500">85</span>
+                <span className="text-xs font-bold text-slate-500">/ 100</span>
+              </div>
+            </div>
+            <div className="mt-8 text-center">
+              <p className="text-red-500 font-bold mb-1">Critical Exposure</p>
+              <p className="text-slate-500 text-xs px-4">Based on current network configuration and internal threat intelligence.</p>
+            </div>
+          </div>
+
+          {/* Contributing Factors */}
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col overflow-hidden shadow-sm">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/30">
+              <h3 className="text-sm font-bold flex items-center gap-2 text-slate-900 dark:text-slate-100">
+                <span className="material-symbols-outlined text-orange-500">list_alt</span>
+                Contributing Risk Factors
+              </h3>
+              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Impact Weighting</span>
+            </div>
+            <div className="p-6 space-y-4">
+              {[
+                { label: 'Legacy Cipher Suites Enabled', icon: 'lock_open', color: 'red', pts: '+42 pts', width: '85%' },
+                { label: 'Weak TLS Configuration (TLS 1.0/1.1)', icon: 'key_off', color: 'orange', pts: '+28 pts', width: '60%' },
+                { label: 'Unpatched CVE-2023-44487', icon: 'history', color: 'yellow', pts: '+15 pts', width: '35%' },
+              ].map((factor, i) => (
+                <div key={i} className="flex items-center gap-4 group">
+                  <div className={`size-10 rounded bg-${factor.color}-500/10 border border-${factor.color}-500/20 flex items-center justify-center flex-shrink-0`}>
+                    <span className={`material-symbols-outlined text-${factor.color}-500 text-lg`}>{factor.icon}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-1">
+                      <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{factor.label}</h4>
+                      <span className={`text-xs text-${factor.color}-400 font-mono`}>{factor.pts}</span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full">
+                      <div className={`bg-${factor.color}-500 h-full rounded-full`} style={{ width: factor.width }}></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Recommendation Box */}
+        <div className="bg-primary/5 border border-primary/30 rounded-xl p-6 flex items-start gap-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <span className="material-symbols-outlined text-6xl text-primary">psychology</span>
+          </div>
+          <div className="size-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/30">
+            <span className="material-symbols-outlined text-white text-2xl">bolt</span>
+          </div>
+          <div className="flex-1 space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Priority Remediation Plan</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">The engine suggests the following immediate actions to reduce the risk score by <span className="text-emerald-500 font-bold">54 points</span>.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-slate-900/60 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary/50 cursor-pointer shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
+                  <h4 className="text-sm font-bold uppercase tracking-tight text-slate-900 dark:text-slate-100">Disable SSLv3/TLS 1.0</h4>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">Modify the proxy configuration to enforce TLS 1.2 or higher. Estimated downtime: 0ms.</p>
+              </div>
+              <div className="bg-white dark:bg-slate-900/60 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary/50 cursor-pointer shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="material-symbols-outlined text-primary text-sm">check_circle</span>
+                  <h4 className="text-sm font-bold uppercase tracking-tight text-slate-900 dark:text-slate-100">Rotate Production Keys</h4>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">Detected key age exceeds policy (365 days). Recommended rotation via Vault.</p>
+              </div>
+            </div>
+            <div className="pt-2">
+              <button className="bg-primary hover:bg-primary/80 text-white font-bold py-2 px-6 rounded text-sm transition-colors flex items-center gap-2 shadow-lg shadow-primary/20 scale-100 active:scale-95 transition-all">
+                <span className="material-symbols-outlined text-sm">rocket_launch</span>
+                Execute Automatic Remediation
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Secondary Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pb-8">
+          {[
+            { label: 'Internal Users', value: '1,248', sub: '2.4% vs last scan', icon: 'trending_up', trend: 'up' },
+            { label: 'Endpoint Agents', value: '98.2%', sub: 'Status: Operational', icon: '', trend: '' },
+            { label: 'Threat Intelligence', value: '4 Live', sub: 'Active exploits detected', icon: 'warning', trend: 'warn' },
+            { label: 'Last Scan', value: '12m 45s ago', sub: 'Scan ID: #AS-992-B', icon: '', trend: 'italic' },
+          ].map((stat, i) => (
+            <div key={i} className="bg-white dark:bg-slate-900/30 p-4 rounded-lg border border-slate-200 dark:border-slate-800 flex flex-col shadow-sm">
+              <span className="text-xs text-slate-500 font-bold uppercase mb-2 tracking-wider">{stat.label}</span>
+              <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">{stat.value}</span>
+              <span className={`text-[10px] mt-1 flex items-center gap-1 ${stat.trend === 'up' ? 'text-emerald-500' : stat.trend === 'warn' ? 'text-red-500 font-bold' : stat.trend === 'italic' ? 'text-slate-500 italic' : 'text-slate-500'}`}>
+                {stat.icon && <span className="material-symbols-outlined text-[10px]">{stat.icon}</span>}
+                {stat.sub}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RiskAnalysisPage;

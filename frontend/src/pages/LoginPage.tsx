@@ -1,6 +1,15 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Simulate successful login
+    navigate('/');
+  };
+
   return (
     <div className="bg-background-light dark:bg-background-dark font-display flex items-center justify-center min-h-screen">
       <div className="w-full max-w-md p-6">
@@ -28,7 +37,7 @@ const LoginPage: React.FC = () => {
             </div>
           </div>
 
-          <form className="p-8 space-y-5" onSubmit={(e) => e.preventDefault()}>
+          <form className="p-8 space-y-5" onSubmit={handleLogin}>
             {/* Username */}
             <div>
               <label className="block text-slate-700 dark:text-slate-300 text-sm font-semibold mb-1.5" htmlFor="username">

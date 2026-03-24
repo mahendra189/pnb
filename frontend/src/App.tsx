@@ -9,6 +9,16 @@ import ForecastPage from './pages/ForecastPage';
 import DocsPage from './pages/DocsPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 
+import RunScanPage from './pages/RunScanPage';
+import ScanResultsPage from './pages/ScanResultsPage';
+import AssetManagementPage from './pages/AssetManagementPage';
+import CBOMRecordsPage from './pages/CBOMRecordsPage';
+import RiskAnalysisPage from './pages/RiskAnalysisPage';
+import PQCClassificationPage from './pages/PQCClassificationPage';
+import ReportsPage from './pages/ReportsPage';
+import UserManagementPage from './pages/UserManagementPage';
+import SettingsPage from './pages/SettingsPage';
+
 export default function App() {
   // Simple auth check simulation (could be expanded)
   const isAuthenticated = true; 
@@ -27,21 +37,19 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Layout />}>
         <Route index element={<DashboardPage />} />
+        <Route path="scan" element={<RunScanPage />} />
+        <Route path="results" element={<ScanResultsPage />} />
+        <Route path="assets" element={<AssetManagementPage />} />
+        <Route path="cbom" element={<CBOMRecordsPage />} />
+        <Route path="risk" element={<RiskAnalysisPage />} />
+        <Route path="pqc" element={<PQCClassificationPage />} />
+        <Route path="reports" element={<ReportsPage />} />
+        <Route path="users" element={<UserManagementPage />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route path="soc" element={<SOCPage />} />
         <Route path="heatmap" element={<HeatmapPage />} />
         <Route path="forecast" element={<ForecastPage />} />
         <Route path="docs" element={<DocsPage />} />
-        
-        {/* Placeholder routes for sidebar links */}
-        <Route path="assets" element={<PlaceholderPage title="Asset Management" />} />
-        <Route path="scan" element={<PlaceholderPage title="Run Scan" />} />
-        <Route path="results" element={<PlaceholderPage title="Scan Results" />} />
-        <Route path="cbom" element={<PlaceholderPage title="CBOM Records" />} />
-        <Route path="risk" element={<PlaceholderPage title="Risk Analysis" />} />
-        <Route path="pqc" element={<PlaceholderPage title="PQC Classification" />} />
-        <Route path="reports" element={<PlaceholderPage title="Reports" />} />
-        <Route path="users" element={<PlaceholderPage title="User Management" />} />
-        <Route path="settings" element={<PlaceholderPage title="Settings" />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
