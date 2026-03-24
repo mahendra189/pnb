@@ -138,11 +138,11 @@ def _register_routers(app: FastAPI) -> None:
         prefix=settings.API_V1_STR,
     )
     # Placeholder for future tiers — uncomment as phases progress
-    # from app.api.v1.endpoints import scans, compliance, cbom, topology
+    from app.api.v1.endpoints import compliance, cbom, topology
     # app.include_router(scans.router,      prefix=settings.API_V1_STR)
-    # app.include_router(cbom.router,       prefix=settings.API_V1_STR)
-    # app.include_router(compliance.router, prefix=settings.API_V1_STR)
-    # app.include_router(topology.router,   prefix=settings.API_V1_STR)
+    app.include_router(cbom.router,       prefix=settings.API_V1_STR)
+    app.include_router(compliance.router, prefix=settings.API_V1_STR)
+    app.include_router(topology.router,   prefix=settings.API_V1_STR)
 
 
 # ── Exception handlers ────────────────────────────────────────────────────────
