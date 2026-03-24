@@ -64,6 +64,39 @@ const DashboardPage: React.FC = () => {
         ))}
       </div>
 
+      {/* Security Alerts Section */}
+      <div className="grid grid-cols-1 gap-4">
+        <div className="bg-red-500/5 dark:bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-red-500">notifications_active</span>
+              <h3 className="font-bold text-sm text-red-500 uppercase tracking-wider">Critical Security Alerts</h3>
+            </div>
+            <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-black rounded italic">ACTION REQUIRED</span>
+          </div>
+          <div className="space-y-3">
+            {[
+              { title: 'Certificate Expiry Alert', target: 'api.prod.gateway.com', msg: 'Leaf certificate expiring in 12 days (RSA-2048)', severity: 'CRITICAL' },
+              { title: 'Legacy Algorithm Detected', target: 'legacy.vault-01.internal', msg: '3DES detected in active handshake. Immediate migration required.', severity: 'HIGH' },
+            ].map((alert, i) => (
+              <div key={i} className="flex items-start justify-between bg-white dark:bg-slate-900/40 p-3 rounded border border-red-500/10 hover:border-red-500/30 transition-colors">
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 rounded bg-red-500/20 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-red-500 text-lg">{alert.severity === 'CRITICAL' ? 'priority_high' : 'warning'}</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{alert.title}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Target: <span className="font-mono text-primary">{alert.target}</span></p>
+                    <p className="text-[10px] text-red-500/80 mt-1">{alert.msg}</p>
+                  </div>
+                </div>
+                <button className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-[10px] font-bold transition-colors">FIX NOW</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Main Grid: Activity & Risk */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Recent Scan Activity */}
@@ -71,38 +104,45 @@ const DashboardPage: React.FC = () => {
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary">history</span>
-              <h3 className="font-bold text-sm">Recent Scan Activity</h3>
+              <h3 className="font-bold text-sm">Recent Scan Activity (T vs T-1)</h3>
             </div>
-            <button className="text-[11px] font-bold text-primary hover:underline">VIEW ALL</button>
+            <button className="text-[11px] font-bold text-primary hover:underline">VIEW FULL HISTORY</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead className="bg-slate-50 dark:bg-slate-900/50">
                 <tr>
                   <th className="p-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Host / Target</th>
-                  <th className="p-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Algorithm</th>
-                  <th className="p-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">HNDL Score</th>
+                  <th className="p-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Current Score</th>
+                  <th className="p-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Delta</th>
                   <th className="p-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Result</th>
                   <th className="p-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {assets.slice(0, 5).map((asset, i) => (
-                  <tr key={asset.id || i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                {[
+                  { host: 'api.pqc-kyber.com', score: '1.2', delta: '-0.5', status: 'pqc_ready', trend: 'down' },
+                  { host: 'legacy.vault-01.net', score: '9.4', delta: '+1.2', status: 'critical', trend: 'up' },
+                  { host: 'portal.prod.bank.cn', score: '4.5', delta: '0.0', status: 'at_risk', trend: 'even' },
+                ].map((asset, i) => (
+                  <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="p-3 text-xs font-mono">{asset.host}</td>
-                    <td className="p-3 text-xs">{asset.algo}</td>
-                    <td className={`p-3 text-xs font-bold ${RISK_COLOR[asset.risk_band] || ''}`}>{asset.hndl_score}</td>
+                    <td className={`p-3 text-xs font-bold ${asset.status === 'critical' ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>{asset.score}</td>
+                    <td className={`p-3 text-[10px] font-bold flex items-center gap-0.5 ${asset.trend === 'up' ? 'text-red-500' : asset.trend === 'down' ? 'text-green-500' : 'text-slate-400'}`}>
+                      <span className="material-symbols-outlined text-[12px]">{asset.trend === 'up' ? 'trending_up' : asset.trend === 'down' ? 'trending_down' : 'trending_flat'}</span>
+                      {asset.delta}
+                    </td>
                     <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
-                        asset.quantum_label === 'pqc_ready' 
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        asset.status === 'pqc_ready' 
+                          ? 'bg-teal-500/20 text-teal-400' 
+                          : asset.status === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-amber-500/20 text-amber-500'
                       }`}>
-                        {asset.quantum_label?.replace(/_/g, ' ') || 'UNKNOWN'}
+                        {asset.status.replace(/_/g, ' ')}
                       </span>
                     </td>
                     <td className="p-3">
-                      <button className="material-symbols-outlined text-slate-400 hover:text-primary transition-colors">visibility</button>
+                      <button className="material-symbols-outlined text-slate-400 hover:text-primary transition-colors">compare_arrows</button>
                     </td>
                   </tr>
                 ))}
@@ -179,7 +219,19 @@ const DashboardPage: React.FC = () => {
               >
                 START NEW SCAN
               </button>
-              <button className="px-4 py-2 bg-primary/20 border border-white/30 rounded font-bold text-xs hover:bg-white/10 transition-colors">CONFIGURE PARAMETERS</button>
+              <button 
+                onClick={async () => {
+                  try {
+                    await fetch('/api/v1/dev/simulate-scan', { method: 'POST' });
+                    alert('Simulation Triggered! Scans are running in the background.');
+                  } catch (e) {
+                    console.error('Simulation failed', e);
+                  }
+                }}
+                className="px-4 py-2 bg-primary/20 border border-white/30 rounded font-bold text-xs hover:bg-white/10 transition-colors"
+              >
+                SIMULATE SCHEDULED SCAN
+              </button>
             </div>
           </div>
           <span className="material-symbols-outlined absolute -bottom-10 -right-10 text-[180px] opacity-10 pointer-events-none group-hover:scale-110 transition-transform">bolt</span>

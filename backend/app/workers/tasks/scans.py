@@ -82,6 +82,11 @@ def run_tls_scan(self: Task, asset_id: str) -> dict[str, Any]:
                 supports_pqc = "kyber" in host.lower() # Simulation hack
                 severity = ScanSeverity.LOW if supports_pqc else ScanSeverity.MEDIUM
                 
+                # ── Certificate Expiry Alert ──────────────────────────────────────
+                from datetime import timedelta
+                mock_expiry = datetime.utcnow() + timedelta(days=15 if "gateway" in host.lower() else 365)
+                is_expiring_soon = (mock_expiry - datetime.utcnow()).days < 30
+                
                 new_scan = TLSScanResult(
                     asset_id=asset.id,
                     host=host,
@@ -90,13 +95,14 @@ def run_tls_scan(self: Task, asset_id: str) -> dict[str, Any]:
                     scan_job_id=uuid.UUID(self.request.id) if self.request.id else uuid.uuid4(),
                     highest_tls_version=TLSVersion.TLS_1_3,
                     supports_pqc_kem=supports_pqc,
-                    severity=severity,
+                    severity=ScanSeverity.CRITICAL if is_expiring_soon else severity,
                     hndl_score=1.2 if supports_pqc else 6.5,
                     cipher_suites=[
                         {"name": "TLS_AES_256_GCM_SHA384", "pqc_safe": True},
                         {"name": "ECDHE-RSA-AES256-GCM-SHA384", "pqc_safe": False}
                     ],
-                    raw_output=mock_raw,
+                    leaf_cert_expiry=mock_expiry,
+                    raw_output={**mock_raw, "cert_expiry_alert": is_expiring_soon},
                     scanned_at=datetime.utcnow(),
                 )
 

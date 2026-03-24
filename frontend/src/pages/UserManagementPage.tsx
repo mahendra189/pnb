@@ -112,26 +112,26 @@ const UserManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Widgets */}
-      <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+      {/* Admin / System Health Monitoring */}
+      <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-4">
         {[
-          { label: 'Active Sessions', value: '12', sub: '+2 from last hour', icon: 'sensors', color: 'primary' },
-          { label: 'Security Alerts', value: '0', sub: 'All systems nominal', icon: 'warning', color: 'amber' },
-          { label: 'License Utilization', value: '45%', sub: 'Progress', icon: 'fact_check', color: 'slate' },
+          { label: 'Celery Workers', value: '4 Online', sub: 'Status: Healthy', icon: 'settings_suggest', color: 'emerald' },
+          { label: 'Neo4j Topology', value: 'Active', sub: '10.4k Nodes | 25k Edges', icon: 'hub', color: 'primary' },
+          { label: 'PostgreSQL', value: 'Connected', sub: 'Latency: 2ms', icon: 'database', color: 'emerald' },
+          { label: 'GNN Model', value: 'v2.1', sub: 'Last retrain: 2d ago', icon: 'psychology', color: 'primary' },
         ].map((widget, i) => (
-          <div key={i} className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[10px] font-bold uppercase text-slate-500 tracking-widest">{widget.label}</h3>
-              <span className={`material-symbols-outlined text-${widget.color === 'primary' ? 'primary' : widget.color === 'amber' ? 'amber-500' : 'slate-400'}`}>{widget.icon}</span>
-            </div>
-            <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{widget.value}</p>
-            {widget.label === 'License Utilization' ? (
-              <div className="mt-2 h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                <div className="h-full bg-primary rounded-full" style={{ width: widget.value }}></div>
+          <div key={i} className="bg-white dark:bg-slate-900 shadow-xl p-5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col group hover:border-primary/50 transition-all border-b-4 border-b-primary/30">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">{widget.label}</h3>
+              <div className={`p-2 rounded bg-${widget.color === 'primary' ? 'primary/10' : 'emerald-500/10'} group-hover:scale-110 transition-transform`}>
+                <span className={`material-symbols-outlined text-sm ${widget.color === 'primary' ? 'text-primary' : 'text-emerald-500'}`}>{widget.icon}</span>
               </div>
-            ) : (
-              <p className={`text-[10px] font-bold uppercase ${widget.sub.includes('+') ? 'text-emerald-500' : 'text-slate-500'}`}>{widget.sub}</p>
-            )}
+            </div>
+            <p className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">{widget.value}</p>
+            <div className="mt-3 flex items-center gap-2">
+              <span className={`h-1.5 w-1.5 rounded-full ${widget.color === 'emerald' ? 'bg-emerald-500 animate-pulse' : 'bg-primary'}`}></span>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">{widget.sub}</p>
+            </div>
           </div>
         ))}
       </div>

@@ -22,9 +22,9 @@ const cbomRecords: CBOMRecord[] = [
 const CBOMRecordsPage: React.FC = () => {
   const getReadinessStyle = (status: CBOMRecord['pqcReadiness']) => {
     switch (status) {
-      case 'Ready': return 'bg-green-500/10 text-green-500 border-green-500/20';
-      case 'At Risk': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-      case 'PQC Native': return 'bg-primary/20 text-primary border-primary/30';
+      case 'Ready': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'At Risk': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'PQC Native': return 'bg-teal-500/20 text-teal-400 border-teal-500/30';
       case 'Critical': return 'bg-red-500/10 text-red-500 border-red-500/20';
       default: return '';
     }

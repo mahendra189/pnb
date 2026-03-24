@@ -7,19 +7,27 @@ interface Asset {
   domain: string;
   owner: string;
   status: 'Active' | 'Pending' | 'Offline';
+  pqcStatus: 'Ready' | 'Not Ready';
+  riskScore: number;
   lastScan: string;
 }
 
 const initialAssets: Asset[] = [
-  { id: '#AST-4821', name: 'API Gateway Prod', type: 'API', domain: 'api.prod.enterprise.com', owner: 'Alex Rivera', status: 'Active', lastScan: '2h ago' },
-  { id: '#AST-5902', name: 'Customer Portal', type: 'Domain', domain: 'portal.enterprise.com', owner: 'Sarah Chen', status: 'Active', lastScan: 'Yesterday' },
-  { id: '#AST-1138', name: 'Main Database Node', type: 'Server', domain: '10.0.42.112', owner: 'Infra Team', status: 'Pending', lastScan: 'Never' },
-  { id: '#AST-8821', name: 'Marketing Site', type: 'Domain', domain: 'marketing.enterprise.com', owner: 'Marketing Div', status: 'Offline', lastScan: '3d ago' },
+  { id: '#AST-4821', name: 'API Gateway Prod', type: 'API', domain: 'api.prod.enterprise.com', owner: 'Alex Rivera', status: 'Active', pqcStatus: 'Not Ready', riskScore: 8.4, lastScan: '2h ago' },
+  { id: '#AST-5902', name: 'Customer Portal', type: 'Domain', domain: 'portal.enterprise.com', owner: 'Sarah Chen', status: 'Active', pqcStatus: 'Ready', riskScore: 1.2, lastScan: 'Yesterday' },
+  { id: '#AST-1138', name: 'Main Database Node', type: 'Server', domain: '10.0.42.112', owner: 'Infra Team', status: 'Pending', pqcStatus: 'Not Ready', riskScore: 9.1, lastScan: 'Never' },
+  { id: '#AST-8821', name: 'Marketing Site', type: 'Domain', domain: 'marketing.enterprise.com', owner: 'Marketing Div', status: 'Offline', pqcStatus: 'Not Ready', riskScore: 4.5, lastScan: '3d ago' },
 ];
 
 const AssetManagementPage: React.FC = () => {
   const [assets] = useState<Asset[]>(initialAssets);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const getRiskColor = (score: number) => {
+    if (score < 4) return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+    if (score < 7) return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+    return 'text-red-500 bg-red-500/10 border-red-500/20';
+  };
 
   return (
     <div className="flex-1 flex flex-col p-8 overflow-y-auto bg-background-light dark:bg-background-dark">
@@ -51,9 +59,9 @@ const AssetManagementPage: React.FC = () => {
             <tr className="bg-slate-50 dark:bg-primary/10 border-b border-slate-200 dark:border-primary/20">
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ID</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Name</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Type</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">PQC Status</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Risk Score</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Domain / IP</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Owner</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Last Scan</th>
               <th className="px-6 py-4"></th>
@@ -64,21 +72,18 @@ const AssetManagementPage: React.FC = () => {
               <tr key={asset.id} className="hover:bg-slate-50 dark:hover:bg-primary/5 transition-colors group">
                 <td className="px-6 py-4 text-sm font-mono text-slate-400">{asset.id}</td>
                 <td className="px-6 py-4 text-sm font-bold">{asset.name}</td>
-                <td className="px-6 py-4 text-sm">
-                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-medium">
-                    {asset.type}
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-tighter border ${asset.pqcStatus === 'Ready' ? 'bg-teal-500/20 text-teal-400 border-teal-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
+                    {asset.pqcStatus}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getRiskColor(asset.riskScore)}`}>
+                    {asset.riskScore.toFixed(1)}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{asset.domain}</td>
-                <td className="px-6 py-4 text-sm">{asset.owner}</td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${asset.status === 'Active' ? 'bg-emerald-500' : asset.status === 'Pending' ? 'bg-yellow-500' : 'bg-red-500'}`}></span>
-                    <span className={`text-sm font-medium ${asset.status === 'Active' ? 'text-emerald-600' : asset.status === 'Pending' ? 'text-yellow-600' : 'text-red-600'}`}>
-                      {asset.status}
-                    </span>
-                  </div>
-                </td>
+                <td className="px-6 py-4 text-sm">{asset.status}</td>
                 <td className="px-6 py-4 text-sm text-slate-500">{asset.lastScan}</td>
                 <td className="px-6 py-4 text-right">
                   <button className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-primary/20 rounded">

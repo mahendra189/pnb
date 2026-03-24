@@ -75,6 +75,57 @@ const RiskAnalysisPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Attack Path Visualization */}
+        <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-red-500">hub</span>
+              <h3 className="font-black text-xs uppercase tracking-widest text-slate-700 dark:text-slate-300">Quantum-Vector Attack Path</h3>
+            </div>
+            <span className="text-[10px] text-red-500 font-bold bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">3 HOPS TO DATA EXFILTRATION</span>
+          </div>
+          <div className="p-10 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-4 lg:gap-12 relative">
+            {/* The actual "Graph" */}
+            {[
+              { id: 'EXT', label: 'External Entry', name: 'api.prod.gateway', icon: 'public', risk: 'critical' },
+              { id: 'MID', label: 'Auth Middleware', name: 'auth-v1.proxy', icon: 'shield', risk: 'high' },
+              { id: 'TGT', label: 'Target Vault', name: 'prod-secrets-01', icon: 'database', risk: 'critical' },
+            ].map((node, i, arr) => (
+              <React.Fragment key={node.id}>
+                <div className="flex flex-col items-center group relative cursor-help">
+                  <div className={`size-16 rounded-full flex items-center justify-center border-4 transition-all group-hover:scale-110 shadow-lg ${
+                    node.risk === 'critical' ? 'bg-red-500/10 border-red-500 text-red-500 shadow-red-500/20' : 'bg-orange-500/10 border-orange-500 text-orange-500 shadow-orange-500/20'
+                  }`}>
+                    <span className="material-symbols-outlined text-3xl">{node.icon}</span>
+                  </div>
+                  <div className="mt-4 text-center">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">{node.label}</p>
+                    <p className="text-xs font-mono font-bold text-slate-900 dark:text-slate-100">{node.name}</p>
+                  </div>
+                  {/* Tooltip Simulation */}
+                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
+                    CVSS: 9.8 | PQC: {node.risk === 'critical' ? 'NOT READY' : 'READY'}
+                  </div>
+                </div>
+                {i < arr.length - 1 && (
+                  <div className="hidden md:flex flex-col items-center flex-1 min-w-[40px] gap-1">
+                    <div className="h-px bg-gradient-to-r from-red-500 to-orange-500 w-full relative">
+                      <span className="material-symbols-outlined absolute -right-2 -top-2 text-orange-500 text-sm">chevron_right</span>
+                    </div>
+                    <span className="text-[9px] font-bold text-slate-400">Broken PKE</span>
+                  </div>
+                )}
+                {i < arr.length - 1 && (
+                  <div className="md:hidden h-8 w-px bg-slate-300 dark:bg-slate-700"></div>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+          <div className="px-6 py-3 bg-red-500/5 text-center text-[10px] text-red-400 font-bold border-t border-slate-100 dark:border-slate-800">
+            DETECTED VIA GRAPH NEURAL NETWORK (GNN) TOPOLOGY ANALYSIS
+          </div>
+        </div>
+
         {/* Recommendation Box */}
         <div className="bg-primary/5 border border-primary/30 rounded-xl p-6 flex items-start gap-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10">
