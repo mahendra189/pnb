@@ -189,19 +189,42 @@ const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-slate-800/40 p-6 rounded-lg border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2 mb-6">
-            <span className="material-symbols-outlined text-primary">analytics</span>
-            <h3 className="font-bold text-sm">PQC Transition Readiness</h3>
+            <span className="material-symbols-outlined text-primary text-xl">pie_chart</span>
+            <h3 className="font-bold text-sm tracking-tight uppercase">Inventory Distribution</h3>
           </div>
-          <div className="h-40 flex items-end justify-between gap-4 px-2">
-            {[30, 45, 65, 80, 95].map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div 
-                  className="w-full bg-primary/20 rounded-t transition-all hover:bg-primary/40 cursor-default" 
-                  style={{ height: `${h}%`, opacity: 0.2 + (i * 0.2) }}
-                ></div>
-                <span className="text-[10px] text-slate-500 font-bold">Q{((i + 2) % 4) + 1} {23 + Math.floor((i + 2) / 4)}</span>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-8">
+            {/* Certs by Algorithm */}
+            <div className="space-y-4">
+               <p className="text-[10px] font-black text-slate-500 uppercase text-center">Certs by Algorithm</p>
+               <div className="relative size-28 mx-auto">
+                 <svg viewBox="0 0 36 36" className="size-full -rotate-90">
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#10b981" strokeWidth="3" strokeDasharray="60 40"></circle>
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#f59e0b" strokeWidth="3" strokeDasharray="25 75" strokeDashoffset="-60"></circle>
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#ef4444" strokeWidth="3" strokeDasharray="15 85" strokeDashoffset="-85"></circle>
+                 </svg>
+                 <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black">RSA/ECC</div>
+               </div>
+               <div className="flex flex-col gap-1">
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> RSA-4096</span> <span>60%</span></div>
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> ECDSA-256</span> <span>25%</span></div>
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> RSA-2048</span> <span>15%</span></div>
+               </div>
+            </div>
+            {/* Protocols */}
+            <div className="space-y-4">
+               <p className="text-[10px] font-black text-slate-500 uppercase text-center">Protocol Drift</p>
+               <div className="relative size-28 mx-auto">
+                 <svg viewBox="0 0 36 36" className="size-full -rotate-90">
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#0ea5e9" strokeWidth="4" strokeDasharray="80 20"></circle>
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#f43f5e" strokeWidth="4" strokeDasharray="20 80" strokeDashoffset="-80"></circle>
+                 </svg>
+                 <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black">TLS 1.3</div>
+               </div>
+               <div className="flex flex-col gap-1">
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary font-black animate-pulse"></span> TLS 1.3</span> <span>80.2%</span></div>
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Legacy (1.2/1.1)</span> <span>19.8%</span></div>
+               </div>
+            </div>
           </div>
         </div>
         <div className="bg-primary text-white p-6 rounded-lg border border-primary relative overflow-hidden group">
