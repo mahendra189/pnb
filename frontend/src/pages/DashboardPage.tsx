@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { assetsAPI, devAPI } from '../api/client';
 
 interface Summary {
   total: number;
   critical: number;
   pqcReady: number;
-  safe: number;
+  scanned: number;
 }
 
 const DashboardPage: React.FC = () => {
@@ -14,17 +15,19 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch summary and assets from backend (using existing logic)
-    fetch('/api/v1/assets')
-      .then(r => r.json())
-      .then((d: { items: any[] }) => {
-        const items = d.items ?? [];
+    // Fetch assets from backend via API client
+    assetsAPI.listAssets(1, 100)
+      .then((response: any) => {
+        const items = response.items ?? [];
         setAssets(items);
         setSummary({
           total: items.length,
-          critical: items.filter((a: any) => a.risk_band === 'critical').length,
-          pqcReady: items.filter((a: any) => a.quantum_label === 'pqc_ready').length,
-          safe: items.filter((a: any) => a.quantum_label === 'fully_quantum_safe').length,
+          // Assets with risk_score >= 7.0 considered critical
+          critical: items.filter((a: any) => (a.risk_score ?? 0) >= 7.0).length,
+          // Assets that have been scanned (status !== pending)
+          scanned: items.filter((a: any) => a.status !== 'pending').length,
+          // Assets with low risk score (<= 3.0)
+          pqcReady: items.filter((a: any) => (a.risk_score ?? 0) <= 3.0).length,
         });
       })
       .catch((err) => console.error("Error fetching assets:", err));
@@ -46,7 +49,7 @@ const DashboardPage: React.FC = () => {
           { label: 'Scanned', value: summary?.total ?? '...', icon: 'biotech', color: 'text-primary' },
           { label: 'High Risk', value: summary?.critical ?? '...', icon: 'warning', color: 'text-red-500' },
           { label: 'PQC-Ready', value: summary?.pqcReady ?? '...', icon: 'verified_user', color: 'text-green-500' },
-          { label: 'Non-Ready', value: (summary?.total ?? 0) - (summary?.pqcReady ?? 0) - (summary?.safe ?? 0), icon: 'gpp_maybe', color: 'text-amber-500' },
+          { label: 'Non-Ready', value: (summary?.total ?? 0) - (summary?.pqcReady ?? 0) - (summary?.scanned ?? 0), icon: 'gpp_maybe', color: 'text-amber-500' },
           { label: 'Cert Expiring', value: '12', icon: 'timer', color: 'text-amber-500' },
         ].map((widget, i) => (
           <div key={i} className="bg-white dark:bg-slate-800/40 p-4 rounded-lg border border-slate-200 dark:border-slate-800 swing-border">
@@ -245,10 +248,11 @@ const DashboardPage: React.FC = () => {
               <button 
                 onClick={async () => {
                   try {
-                    await fetch('/api/v1/dev/simulate-scan', { method: 'POST' });
+                    await devAPI.simulateScan();
                     alert('Simulation Triggered! Scans are running in the background.');
                   } catch (e) {
                     console.error('Simulation failed', e);
+                    alert('Failed to trigger simulation. Check console for details.');
                   }
                 }}
                 className="px-4 py-2 bg-primary/20 border border-white/30 rounded font-bold text-xs hover:bg-white/10 transition-colors"

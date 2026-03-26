@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { assetsAPI } from '../api/client';
 
 interface Asset {
   id: string;
-  name: string;
-  domain: string;
+  asset_value: string;
+  asset_type: string;
 }
 
 const RunScanPage: React.FC = () => {
@@ -17,17 +18,17 @@ const RunScanPage: React.FC = () => {
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Fetch real assets from backend
-    fetch('/api/v1/assets')
-      .then(r => r.json())
-      .then(d => {
-        const items = d.items?.map((a: any) => ({
+    // Fetch real assets from backend via API client
+    assetsAPI.listAssets(1, 100)
+      .then((response: any) => {
+        const items = response.items ?? [];
+        const mappedAssets = items.map((a: any) => ({
           id: a.id,
-          name: a.asset_value,
-          domain: a.asset_value
-        })) || [];
-        setAssets(items);
-        if (items.length > 0) setSelectedAssetId(items[0].id);
+          asset_value: a.asset_value,
+          asset_type: a.asset_type,
+        }));
+        setAssets(mappedAssets);
+        if (mappedAssets.length > 0) setSelectedAssetId(mappedAssets[0].id);
       })
       .catch(err => console.error("Failed to fetch assets", err));
   }, []);
@@ -40,23 +41,12 @@ const RunScanPage: React.FC = () => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Triggering on-demand scan for asset ${selectedAssetId}...`]);
 
     try {
-      const response = await fetch(`/api/v1/assets/${selectedAssetId}/scan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scan_types: ['tls'], priority: 1 })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Scan job queued. Task ID: ${data.task_id}`]);
-        // Simulate progress for UI feedback
-        simulateProgress();
-      } else {
-        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] FAILED to trigger scan.`]);
-        setIsScanning(false);
-      }
+      const response = await assetsAPI.triggerScan(selectedAssetId, ['tls'], 1);
+      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Scan job queued. Task ID: ${(response as any).task_id}`]);
+      // Simulate progress for UI feedback
+      simulateProgress();
     } catch (e) {
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Error: ${String(e)}`]);
+      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] FAILED to trigger scan.`]);
       setIsScanning(false);
     }
   };
@@ -109,7 +99,7 @@ const RunScanPage: React.FC = () => {
                 className="w-full bg-slate-50 dark:bg-primary/5 border border-slate-200 dark:border-primary/20 rounded-lg p-3 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 ring-primary/30"
               >
                 {assets.map(a => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
+                  <option key={a.id} value={a.id}>{a.asset_value}</option>
                 ))}
               </select>
 
@@ -118,10 +108,10 @@ const RunScanPage: React.FC = () => {
                   <p className="text-[10px] text-slate-400 font-black uppercase">Live Context</p>
                   <div className="flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary text-sm">dns</span>
-                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{selectedAsset?.name || 'Loading...'}</span>
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{selectedAsset?.asset_value || 'Loading...'}</span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-slate-500">
-                    <span className="flex items-center gap-1 font-mono"><span className="material-symbols-outlined text-[14px]">public</span> {selectedAsset?.domain}</span>
+                    <span className="flex items-center gap-1 font-mono"><span className="material-symbols-outlined text-[14px]">public</span> {selectedAsset?.asset_type}</span>
                   </div>
                 </div>
               </div>

@@ -15,7 +15,7 @@ from app.db.base import get_db
 from app.db.models.cbom import CBOMRecord, CryptoCategory, PQCStatus
 from app.services.cbom_service import CBOMService
 
-router = APIRouter(tags=["CBOM"])
+router = APIRouter(prefix="/cbom", tags=["CBOM"])
 
 @router.get("/", response_model=list[dict[str, Any]])
 async def list_cbom_records(

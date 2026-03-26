@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react';
+import { devAPI } from '../api/client';
 
 const ForecastPage: React.FC = () => {
   const [forecast, setForecast] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/v1/forecast').then(r => r.json()).then(setForecast);
+    devAPI.getForecast()
+      .then(setForecast)
+      .catch((err) => {
+        console.error('Error fetching forecast:', err);
+        setError(err.message);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   return (
