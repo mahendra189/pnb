@@ -8,6 +8,8 @@ import HeatmapPage from './pages/HeatmapPage';
 import ForecastPage from './pages/ForecastPage';
 import DocsPage from './pages/DocsPage';
 import PlaceholderPage from './pages/PlaceholderPage';
+import TechGuideModulesPage from './pages/TechGuideModulesPage';
+import ArchitectureGuidePage from './pages/ArchitectureGuidePage';
 
 import RunScanPage from './pages/RunScanPage';
 import ScanResultsPage from './pages/ScanResultsPage';
@@ -52,6 +54,8 @@ export default function App() {
         <Route path="heatmap" element={<HeatmapPage />} />
         <Route path="forecast" element={<ForecastPage />} />
         <Route path="docs" element={<DocsPage />} />
+        <Route path="tech-guide" element={<TechGuideModulesPage />} />
+        <Route path="architecture" element={<ArchitectureGuidePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
