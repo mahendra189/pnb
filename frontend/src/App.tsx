@@ -15,6 +15,7 @@ import AssetManagementPage from './pages/AssetManagementPage';
 import CBOMRecordsPage from './pages/CBOMRecordsPage';
 import RiskAnalysisPage from './pages/RiskAnalysisPage';
 import PQCClassificationPage from './pages/PQCClassificationPage';
+import CyberRatingPage from './pages/CyberRatingPage';
 import ReportsPage from './pages/ReportsPage';
 import UserManagementPage from './pages/UserManagementPage';
 import SettingsPage from './pages/SettingsPage';
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="cbom" element={<CBOMRecordsPage />} />
         <Route path="risk" element={<RiskAnalysisPage />} />
         <Route path="pqc" element={<PQCClassificationPage />} />
+        <Route path="cyber-rating" element={<CyberRatingPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="users" element={<UserManagementPage />} />
         <Route path="settings" element={<SettingsPage />} />

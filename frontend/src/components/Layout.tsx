@@ -12,6 +12,7 @@ const Layout: React.FC = () => {
     { name: 'CBOM Records', icon: 'list_alt', path: '/cbom' },
     { name: 'Risk Analysis', icon: 'report_problem', path: '/risk' },
     { name: 'PQC Classification', icon: 'category', path: '/pqc' },
+    { name: 'Cyber Rating', icon: 'shield', path: '/cyber-rating' },
     { name: 'Reports', icon: 'bar_chart', path: '/reports' },
   ];
 
