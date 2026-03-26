@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { assetsAPI, devAPI } from '../api/client';
 
 interface Summary {
   total: number;
   critical: number;
   pqcReady: number;
-  safe: number;
+  scanned: number;
 }
 
 const DashboardPage: React.FC = () => {
@@ -14,17 +15,19 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch summary and assets from backend (using existing logic)
-    fetch('/api/v1/assets')
-      .then(r => r.json())
-      .then((d: { items: any[] }) => {
-        const items = d.items ?? [];
+    // Fetch assets from backend via API client
+    assetsAPI.listAssets(1, 100)
+      .then((response: any) => {
+        const items = response.items ?? [];
         setAssets(items);
         setSummary({
           total: items.length,
-          critical: items.filter((a: any) => a.risk_band === 'critical').length,
-          pqcReady: items.filter((a: any) => a.quantum_label === 'pqc_ready').length,
-          safe: items.filter((a: any) => a.quantum_label === 'fully_quantum_safe').length,
+          // Assets with risk_score >= 7.0 considered critical
+          critical: items.filter((a: any) => (a.risk_score ?? 0) >= 7.0).length,
+          // Assets that have been scanned (status !== pending)
+          scanned: items.filter((a: any) => a.status !== 'pending').length,
+          // Assets with low risk score (<= 3.0)
+          pqcReady: items.filter((a: any) => (a.risk_score ?? 0) <= 3.0).length,
         });
       })
       .catch((err) => console.error("Error fetching assets:", err));
@@ -46,7 +49,7 @@ const DashboardPage: React.FC = () => {
           { label: 'Scanned', value: summary?.total ?? '...', icon: 'biotech', color: 'text-primary' },
           { label: 'High Risk', value: summary?.critical ?? '...', icon: 'warning', color: 'text-red-500' },
           { label: 'PQC-Ready', value: summary?.pqcReady ?? '...', icon: 'verified_user', color: 'text-green-500' },
-          { label: 'Non-Ready', value: (summary?.total ?? 0) - (summary?.pqcReady ?? 0) - (summary?.safe ?? 0), icon: 'gpp_maybe', color: 'text-amber-500' },
+          { label: 'Non-Ready', value: (summary?.total ?? 0) - (summary?.pqcReady ?? 0) - (summary?.scanned ?? 0), icon: 'gpp_maybe', color: 'text-amber-500' },
           { label: 'Cert Expiring', value: '12', icon: 'timer', color: 'text-amber-500' },
         ].map((widget, i) => (
           <div key={i} className="bg-white dark:bg-slate-800/40 p-4 rounded-lg border border-slate-200 dark:border-slate-800 swing-border">
@@ -189,19 +192,42 @@ const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-slate-800/40 p-6 rounded-lg border border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2 mb-6">
-            <span className="material-symbols-outlined text-primary">analytics</span>
-            <h3 className="font-bold text-sm">PQC Transition Readiness</h3>
+            <span className="material-symbols-outlined text-primary text-xl">pie_chart</span>
+            <h3 className="font-bold text-sm tracking-tight uppercase">Inventory Distribution</h3>
           </div>
-          <div className="h-40 flex items-end justify-between gap-4 px-2">
-            {[30, 45, 65, 80, 95].map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div 
-                  className="w-full bg-primary/20 rounded-t transition-all hover:bg-primary/40 cursor-default" 
-                  style={{ height: `${h}%`, opacity: 0.2 + (i * 0.2) }}
-                ></div>
-                <span className="text-[10px] text-slate-500 font-bold">Q{((i + 2) % 4) + 1} {23 + Math.floor((i + 2) / 4)}</span>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-8">
+            {/* Certs by Algorithm */}
+            <div className="space-y-4">
+               <p className="text-[10px] font-black text-slate-500 uppercase text-center">Certs by Algorithm</p>
+               <div className="relative size-28 mx-auto">
+                 <svg viewBox="0 0 36 36" className="size-full -rotate-90">
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#10b981" strokeWidth="3" strokeDasharray="60 40"></circle>
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#f59e0b" strokeWidth="3" strokeDasharray="25 75" strokeDashoffset="-60"></circle>
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#ef4444" strokeWidth="3" strokeDasharray="15 85" strokeDashoffset="-85"></circle>
+                 </svg>
+                 <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black">RSA/ECC</div>
+               </div>
+               <div className="flex flex-col gap-1">
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> RSA-4096</span> <span>60%</span></div>
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> ECDSA-256</span> <span>25%</span></div>
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> RSA-2048</span> <span>15%</span></div>
+               </div>
+            </div>
+            {/* Protocols */}
+            <div className="space-y-4">
+               <p className="text-[10px] font-black text-slate-500 uppercase text-center">Protocol Drift</p>
+               <div className="relative size-28 mx-auto">
+                 <svg viewBox="0 0 36 36" className="size-full -rotate-90">
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#0ea5e9" strokeWidth="4" strokeDasharray="80 20"></circle>
+                    <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#f43f5e" strokeWidth="4" strokeDasharray="20 80" strokeDashoffset="-80"></circle>
+                 </svg>
+                 <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black">TLS 1.3</div>
+               </div>
+               <div className="flex flex-col gap-1">
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary font-black animate-pulse"></span> TLS 1.3</span> <span>80.2%</span></div>
+                 <div className="flex items-center justify-between text-[9px] font-bold"><span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Legacy (1.2/1.1)</span> <span>19.8%</span></div>
+               </div>
+            </div>
           </div>
         </div>
         <div className="bg-primary text-white p-6 rounded-lg border border-primary relative overflow-hidden group">
@@ -222,10 +248,11 @@ const DashboardPage: React.FC = () => {
               <button 
                 onClick={async () => {
                   try {
-                    await fetch('/api/v1/dev/simulate-scan', { method: 'POST' });
+                    await devAPI.simulateScan();
                     alert('Simulation Triggered! Scans are running in the background.');
                   } catch (e) {
                     console.error('Simulation failed', e);
+                    alert('Failed to trigger simulation. Check console for details.');
                   }
                 }}
                 className="px-4 py-2 bg-primary/20 border border-white/30 rounded font-bold text-xs hover:bg-white/10 transition-colors"

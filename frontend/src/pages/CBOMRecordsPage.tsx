@@ -4,6 +4,7 @@ interface CBOMRecord {
   assetName: string;
   tlsVersion: string;
   cipher: string;
+  keySize: string;
   keyExchange: string;
   sigAlgo: string;
   certExpiry: string;
@@ -11,12 +12,12 @@ interface CBOMRecord {
 }
 
 const cbomRecords: CBOMRecord[] = [
-  { assetName: 'Auth Service Proxy', tlsVersion: 'TLS 1.3', cipher: 'AES-256-GCM', keyExchange: 'ECDHE (X25519)', sigAlgo: 'RSA-PSS 4096', certExpiry: '2025-12-01', pqcReadiness: 'Ready' },
-  { assetName: 'Payment Gateway API', tlsVersion: 'TLS 1.2', cipher: 'AES-128-CBC', keyExchange: 'DHE-RSA', sigAlgo: 'RSA-PKCS1v1.5', certExpiry: '2024-06-15', pqcReadiness: 'At Risk' },
-  { assetName: 'Main Cluster DB-01', tlsVersion: 'TLS 1.3', cipher: 'ChaCha20-Poly1305', keyExchange: 'Hybrid (X25519 + Kyber)', sigAlgo: 'Ed25519', certExpiry: '2026-01-20', pqcReadiness: 'PQC Native' },
-  { assetName: 'Legacy Inventory v1', tlsVersion: 'TLS 1.1', cipher: '3DES-EDE-CBC-SHA', keyExchange: 'RSA', sigAlgo: 'SHA-1', certExpiry: '2023-11-10', pqcReadiness: 'Critical' },
-  { assetName: 'S3 Bucket Interface', tlsVersion: 'TLS 1.2', cipher: 'AES-256-SHA256', keyExchange: 'ECDHE-RSA', sigAlgo: 'ECDSA P-256', certExpiry: '2025-08-30', pqcReadiness: 'At Risk' },
-  { assetName: 'Customer CRM Portal', tlsVersion: 'TLS 1.3', cipher: 'AES-128-GCM', keyExchange: 'ECDHE', sigAlgo: 'RSA-PSS', certExpiry: '2026-05-12', pqcReadiness: 'Ready' },
+  { assetName: 'Auth Service Proxy', tlsVersion: 'TLS 1.3', cipher: 'AES-256-GCM', keySize: '256-bit', keyExchange: 'ECDHE (X25519)', sigAlgo: 'RSA-PSS 4096', certExpiry: '2025-12-01', pqcReadiness: 'Ready' },
+  { assetName: 'Payment Gateway API', tlsVersion: 'TLS 1.2', cipher: 'AES-128-CBC', keySize: '128-bit', keyExchange: 'DHE-RSA', sigAlgo: 'RSA-PKCS1v1.5', certExpiry: '2024-06-15', pqcReadiness: 'At Risk' },
+  { assetName: 'Main Cluster DB-01', tlsVersion: 'TLS 1.3', cipher: 'ChaCha20-Poly1305', keySize: '256-bit', keyExchange: 'Hybrid (X25519 + Kyber)', sigAlgo: 'Ed25519', certExpiry: '2026-01-20', pqcReadiness: 'PQC Native' },
+  { assetName: 'Legacy Inventory v1', tlsVersion: 'TLS 1.1', cipher: '3DES-EDE-CBC-SHA', keySize: '168-bit', keyExchange: 'RSA', sigAlgo: 'SHA-1', certExpiry: '2023-11-10', pqcReadiness: 'Critical' },
+  { assetName: 'S3 Bucket Interface', tlsVersion: 'TLS 1.2', cipher: 'AES-256-SHA256', keySize: '256-bit', keyExchange: 'ECDHE-RSA', sigAlgo: 'ECDSA P-256', certExpiry: '2025-08-30', pqcReadiness: 'At Risk' },
+  { assetName: 'Customer CRM Portal', tlsVersion: 'TLS 1.3', cipher: 'AES-128-GCM', keySize: '128-bit', keyExchange: 'ECDHE', sigAlgo: 'RSA-PSS', certExpiry: '2026-05-12', pqcReadiness: 'Ready' },
 ];
 
 const CBOMRecordsPage: React.FC = () => {
@@ -69,6 +70,7 @@ const CBOMRecordsPage: React.FC = () => {
                   <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">Asset Name</th>
                   <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">TLS Version</th>
                   <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">Cipher</th>
+                  <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">Key Size</th>
                   <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">Key Exchange</th>
                   <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">Sig Algorithm</th>
                   <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">Cert Expiry</th>
@@ -85,6 +87,7 @@ const CBOMRecordsPage: React.FC = () => {
                       </span>
                     </td>
                     <td className={`px-4 py-4 text-sm font-mono border-r border-slate-100 dark:border-slate-800 uppercase ${record.tlsVersion === 'TLS 1.1' ? 'text-red-400/80' : 'text-slate-500 dark:text-slate-400'}`}>{record.cipher}</td>
+                    <td className="px-4 py-4 text-sm font-bold border-r border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200">{record.keySize}</td>
                     <td className="px-4 py-4 text-sm border-r border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">{record.keyExchange}</td>
                     <td className="px-4 py-4 text-sm border-r border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">{record.sigAlgo}</td>
                     <td className="px-4 py-4 text-sm border-r border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400">{record.certExpiry}</td>

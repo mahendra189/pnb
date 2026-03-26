@@ -12,7 +12,13 @@ const Layout: React.FC = () => {
     { name: 'CBOM Records', icon: 'list_alt', path: '/cbom' },
     { name: 'Risk Analysis', icon: 'report_problem', path: '/risk' },
     { name: 'PQC Classification', icon: 'category', path: '/pqc' },
+    { name: 'Cyber Rating', icon: 'shield', path: '/cyber-rating' },
     { name: 'Reports', icon: 'bar_chart', path: '/reports' },
+  ];
+
+  const docItems = [
+    { name: 'Tech Guide (Modules)', icon: 'auto_stories', path: '/tech-guide' },
+    { name: 'Architecture Guide', icon: 'architecture', path: '/architecture' },
   ];
 
   return (
@@ -44,6 +50,24 @@ const Layout: React.FC = () => {
               <span className="text-sm font-medium">{item.name}</span>
             </Link>
           ))}
+          
+          <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4">
+            <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Documentation</div>
+            {docItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${
+                  location.pathname === item.path
+                    ? 'bg-primary text-white'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                <span className="text-sm font-medium">{item.name}</span>
+              </Link>
+            ))}
+          </div>
           
           <div className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-4">
             <Link to="/users" className="flex items-center gap-3 px-3 py-2 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">

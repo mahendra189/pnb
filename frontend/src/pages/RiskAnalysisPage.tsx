@@ -126,6 +126,174 @@ const RiskAnalysisPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Key Risk Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* HNDL Score Card */}
+          <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-500 tracking-widest mb-2">HNDL Score</h3>
+                <p className="text-xs text-slate-400">Hardware-Network-Database-Logic Assessment</p>
+              </div>
+              <span className="material-symbols-outlined text-slate-400">info</span>
+            </div>
+            <div className="flex items-end gap-4">
+              <div className="flex-1">
+                <div className="text-4xl font-black text-orange-500 mb-2">72</div>
+                <div className="text-xs text-slate-500 mb-3">Out of 100</div>
+                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div className="bg-gradient-to-r from-orange-400 to-orange-500 h-full" style={{ width: '72%' }}></div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-bold text-orange-500 mb-1">⚠ MEDIUM</div>
+                <div className="text-[10px] text-slate-500">Needs attention</div>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-orange-500/5 rounded border border-orange-500/20">
+              <p className="text-xs text-slate-600 dark:text-slate-400">Hardware: 68 | Network: 75 | Database: 71 | Logic: 74</p>
+            </div>
+          </div>
+
+          {/* Crypto Agility Score Card */}
+          <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-500 tracking-widest mb-2">Crypto Agility Score</h3>
+                <p className="text-xs text-slate-400">Algorithm Migration Readiness</p>
+              </div>
+              <span className="material-symbols-outlined text-slate-400">info</span>
+            </div>
+            <div className="flex items-end gap-4">
+              <div className="flex-1">
+                <div className="text-4xl font-black text-amber-500 mb-2">58</div>
+                <div className="text-xs text-slate-500 mb-3">Out of 100</div>
+                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div className="bg-gradient-to-r from-amber-400 to-amber-500 h-full" style={{ width: '58%' }}></div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-bold text-amber-500 mb-1">⚠ LOW</div>
+                <div className="text-[10px] text-slate-500">Limited flexibility</div>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-amber-500/5 rounded border border-amber-500/20">
+              <p className="text-xs text-slate-600 dark:text-slate-400">Hybrid support: 45% | API modularity: 62% | Fallback mechanisms: 68%</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Migration Forecast Section */}
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border border-blue-200 dark:border-blue-800/30 rounded-xl p-8 shadow-sm">
+          <div className="flex items-start gap-4 mb-6">
+            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-3xl">timeline</span>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Migration Forecast & Expected Outcomes</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Projected risk reduction and security posture improvements following recommended remediation</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+            {/* Current State */}
+            <div className="bg-white dark:bg-slate-900/60 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Current State</h4>
+                <span className="text-xs font-bold bg-red-500/10 text-red-600 dark:text-red-400 px-2 py-1 rounded">NOW</span>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Risk Score</span>
+                    <span className="text-lg font-bold text-red-500">85/100</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div className="bg-red-500 h-full" style={{ width: '85%' }}></div>
+                  </div>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-outlined text-sm text-red-500">close</span>
+                    <span>TLS 1.0/1.1 Active</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-outlined text-sm text-red-500">close</span>
+                    <span>RSA-2048 Only</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-outlined text-sm text-red-500">close</span>
+                    <span>No PQC Support</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Transition Arrow */}
+            <div className="hidden lg:flex flex-col items-center justify-center gap-2">
+              <div className="flex-1 border-l-2 border-dashed border-blue-400"></div>
+              <span className="material-symbols-outlined text-blue-500 text-3xl">arrow_downward</span>
+              <div className="flex-1 border-l-2 border-dashed border-blue-400"></div>
+            </div>
+
+            {/* Projected State (After Migration) */}
+            <div className="bg-white dark:bg-slate-900/60 rounded-lg p-6 border border-emerald-200 dark:border-emerald-700/30">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Post-Migration</h4>
+                <span className="text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded">12-16 WEEKS</span>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Risk Score</span>
+                    <span className="text-lg font-bold text-emerald-500">31/100</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div className="bg-emerald-500 h-full" style={{ width: '31%' }}></div>
+                  </div>
+                  <div className="text-xs text-emerald-600 dark:text-emerald-400 font-bold mt-2">↓ 54 points reduction</div>
+                </div>
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-outlined text-sm text-emerald-500">check</span>
+                    <span>TLS 1.3 Enforced</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-outlined text-sm text-emerald-500">check</span>
+                    <span>Hybrid RSA + Kyber</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <span className="material-symbols-outlined text-sm text-emerald-500">check</span>
+                    <span>PQC Ready</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Migration Timeline & Impact */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-blue-500/10 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/30 rounded-lg p-4">
+              <h5 className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase mb-2">Timeline</h5>
+              <div className="text-sm font-bold text-slate-900 dark:text-slate-100">12-16 weeks</div>
+              <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">Phased rollout with testing</div>
+            </div>
+            <div className="bg-emerald-500/10 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-lg p-4">
+              <h5 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase mb-2">Risk Reduction</h5>
+              <div className="text-sm font-bold text-slate-900 dark:text-slate-100">63.5%</div>
+              <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">From 85 → 31 score</div>
+            </div>
+            <div className="bg-amber-500/10 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-lg p-4">
+              <h5 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase mb-2">Downtime</h5>
+              <div className="text-sm font-bold text-slate-900 dark:text-slate-100">&lt; 2 hours</div>
+              <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">During final cutover</div>
+            </div>
+            <div className="bg-cyan-500/10 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800/30 rounded-lg p-4">
+              <h5 className="text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase mb-2">Status</h5>
+              <div className="text-sm font-bold text-slate-900 dark:text-slate-100">Ready</div>
+              <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">Can start immediately</div>
+            </div>
+          </div>
+        </div>
+
         {/* Recommendation Box */}
         <div className="bg-primary/5 border border-primary/30 rounded-xl p-6 flex items-start gap-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10">

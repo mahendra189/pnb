@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 interface Asset {
   id: string;
@@ -12,6 +12,11 @@ interface Asset {
   lastScan: string;
 }
 
+interface AssetConnection {
+  from: string;
+  to: string;
+}
+
 const initialAssets: Asset[] = [
   { id: '#AST-4821', name: 'API Gateway Prod', type: 'API', domain: 'api.prod.enterprise.com', owner: 'Alex Rivera', status: 'Active', pqcStatus: 'Not Ready', riskScore: 8.4, lastScan: '2h ago' },
   { id: '#AST-5902', name: 'Customer Portal', type: 'Domain', domain: 'portal.enterprise.com', owner: 'Sarah Chen', status: 'Active', pqcStatus: 'Ready', riskScore: 1.2, lastScan: 'Yesterday' },
@@ -19,9 +24,212 @@ const initialAssets: Asset[] = [
   { id: '#AST-8821', name: 'Marketing Site', type: 'Domain', domain: 'marketing.enterprise.com', owner: 'Marketing Div', status: 'Offline', pqcStatus: 'Not Ready', riskScore: 4.5, lastScan: '3d ago' },
 ];
 
+const assetConnections: AssetConnection[] = [
+  { from: '#AST-4821', to: '#AST-1138' },
+  { from: '#AST-5902', to: '#AST-1138' },
+  { from: '#AST-4821', to: '#AST-5902' },
+  { from: '#AST-8821', to: '#AST-5902' },
+];
+
+interface NodePosition {
+  x: number;
+  y: number;
+}
+
+const TopologicalAssetView: React.FC<{ assets: Asset[]; connections: AssetConnection[] }> = ({ assets, connections }) => {
+  const positions = useMemo(() => {
+    const pos: { [key: string]: NodePosition } = {};
+    const centerX = 400;
+    const centerY = 300;
+    const radius = 150;
+
+    // Position nodes in a circle with some variation
+    assets.forEach((asset, index) => {
+      const angle = (index / assets.length) * 2 * Math.PI;
+      pos[asset.id] = {
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle),
+      };
+    });
+
+    return pos;
+  }, [assets]);
+
+  const getRiskColor = (score: number) => {
+    if (score < 4) return '#10b981';
+    if (score < 7) return '#f59e0b';
+    return '#ef4444';
+  };
+
+  const getStatusColor = (status: string) => {
+    if (status === 'Active') return '#06b6d4';
+    if (status === 'Pending') return '#eab308';
+    return '#6b7280';
+  };
+
+  return (
+    <div className="flex-1 flex flex-col p-8 overflow-auto bg-background-light dark:bg-background-dark">
+      <h2 className="text-2xl font-bold mb-6 text-slate-900 dark:text-slate-100">Asset Topology</h2>
+      
+      <div className="flex-1 bg-white dark:bg-primary/5 rounded-xl border border-slate-200 dark:border-primary/20 overflow-hidden shadow-sm">
+        <svg className="w-full h-full" viewBox="0 0 800 600">
+          {/* Draw connections */}
+          {connections.map((conn, idx) => {
+            const fromPos = positions[conn.from];
+            const toPos = positions[conn.to];
+            if (fromPos && toPos) {
+              return (
+                <line
+                  key={`conn-${idx}`}
+                  x1={fromPos.x}
+                  y1={fromPos.y}
+                  x2={toPos.x}
+                  y2={toPos.y}
+                  stroke="#cbd5e1"
+                  strokeWidth="2"
+                  markerEnd="url(#arrowhead)"
+                  className="dark:stroke-primary/30"
+                />
+              );
+            }
+            return null;
+          })}
+
+          {/* Arrow marker definition */}
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="10"
+              markerHeight="10"
+              refX="9"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3, 0 6" fill="#cbd5e1" className="dark:fill-primary/30" />
+            </marker>
+          </defs>
+
+          {/* Draw asset nodes */}
+          {assets.map((asset) => {
+            const pos = positions[asset.id];
+            if (!pos) return null;
+
+            return (
+              <g key={asset.id}>
+                {/* Node circle */}
+                <circle
+                  cx={pos.x}
+                  cy={pos.y}
+                  r="45"
+                  fill={getRiskColor(asset.riskScore)}
+                  opacity="0.2"
+                  stroke={getRiskColor(asset.riskScore)}
+                  strokeWidth="2"
+                />
+
+                {/* Status indicator ring */}
+                <circle
+                  cx={pos.x}
+                  cy={pos.y}
+                  r="40"
+                  fill="none"
+                  stroke={getStatusColor(asset.status)}
+                  strokeWidth="3"
+                  opacity="0.8"
+                />
+
+                {/* Node center */}
+                <circle
+                  cx={pos.x}
+                  cy={pos.y}
+                  r="32"
+                  fill="white"
+                  className="dark:fill-primary/10"
+                  stroke={getRiskColor(asset.riskScore)}
+                  strokeWidth="2"
+                />
+
+                {/* Asset type icon background */}
+                <rect
+                  x={pos.x - 10}
+                  y={pos.y - 28}
+                  width="20"
+                  height="20"
+                  rx="3"
+                  fill={getRiskColor(asset.riskScore)}
+                />
+
+                {/* Asset type text */}
+                <text
+                  x={pos.x}
+                  y={pos.y - 13}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fontWeight="bold"
+                  fill="white"
+                >
+                  {asset.type.charAt(0)}
+                </text>
+
+                {/* Asset name */}
+                <text
+                  x={pos.x}
+                  y={pos.y + 5}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fontWeight="bold"
+                  className="fill-slate-900 dark:fill-slate-100"
+                >
+                  {asset.name.split(' ').slice(0, 2).join(' ')}
+                </text>
+
+                {/* Risk score */}
+                <text
+                  x={pos.x}
+                  y={pos.y + 20}
+                  textAnchor="middle"
+                  fontSize="9"
+                  fontWeight="bold"
+                  fill={getRiskColor(asset.riskScore)}
+                >
+                  Risk: {asset.riskScore.toFixed(1)}
+                </text>
+
+                {/* Tooltip info on hover */}
+                <title>{`${asset.name}\nType: ${asset.type}\nStatus: ${asset.status}\nRisk: ${asset.riskScore.toFixed(1)}\nPQC: ${asset.pqcStatus}`}</title>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {/* Legend */}
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+          <span className="text-slate-600 dark:text-slate-400">Low Risk</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+          <span className="text-slate-600 dark:text-slate-400">Medium Risk</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <span className="text-slate-600 dark:text-slate-400">High Risk</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full border-2 border-cyan-500"></div>
+          <span className="text-slate-600 dark:text-slate-400">Active</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AssetManagementPage: React.FC = () => {
   const [assets] = useState<Asset[]>(initialAssets);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'topological'>('table');
 
   const getRiskColor = (score: number) => {
     if (score < 4) return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
@@ -38,6 +246,30 @@ const AssetManagementPage: React.FC = () => {
           <span className="px-3 py-1 rounded bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">128 Total</span>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-primary/10 rounded-lg p-1">
+            <button 
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-2 px-4 py-2 rounded font-bold text-sm transition-colors ${
+                viewMode === 'table' 
+                  ? 'bg-white dark:bg-primary/20 text-primary shadow-sm' 
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <span className="material-symbols-outlined text-lg">table_chart</span>
+              Table
+            </button>
+            <button 
+              onClick={() => setViewMode('topological')}
+              className={`flex items-center gap-2 px-4 py-2 rounded font-bold text-sm transition-colors ${
+                viewMode === 'topological' 
+                  ? 'bg-white dark:bg-primary/20 text-primary shadow-sm' 
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <span className="material-symbols-outlined text-lg">share</span>
+              Topology
+            </button>
+          </div>
           <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-primary/30 rounded font-bold text-sm hover:bg-slate-50 dark:hover:bg-primary/10 transition-colors">
             <span className="material-symbols-outlined text-lg">filter_list</span>
             Filter View
@@ -52,13 +284,15 @@ const AssetManagementPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Table Container */}
+      {/* Conditional View Rendering */}
+      {viewMode === 'table' ? (
       <div className="bg-white dark:bg-primary/5 rounded-xl border border-slate-200 dark:border-primary/20 overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 dark:bg-primary/10 border-b border-slate-200 dark:border-primary/20">
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">ID</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Name</th>
+              <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Type</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">PQC Status</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Risk Score</th>
               <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Domain / IP</th>
@@ -72,6 +306,7 @@ const AssetManagementPage: React.FC = () => {
               <tr key={asset.id} className="hover:bg-slate-50 dark:hover:bg-primary/5 transition-colors group">
                 <td className="px-6 py-4 text-sm font-mono text-slate-400">{asset.id}</td>
                 <td className="px-6 py-4 text-sm font-bold">{asset.name}</td>
+                <td className="px-6 py-4 text-sm">{asset.type}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-tighter border ${asset.pqcStatus === 'Ready' ? 'bg-teal-500/20 text-teal-400 border-teal-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
                     {asset.pqcStatus}
@@ -107,6 +342,9 @@ const AssetManagementPage: React.FC = () => {
           </div>
         </div>
       </div>
+      ) : (
+        <TopologicalAssetView assets={assets} connections={assetConnections} />
+      )}
 
       {/* Modal Dialog */}
       {isModalOpen && (

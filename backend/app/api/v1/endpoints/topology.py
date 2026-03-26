@@ -12,7 +12,7 @@ from neo4j import AsyncSession as GraphSession
 
 from app.db.graph import get_full_topology, get_attack_paths, graph_session
 
-router = APIRouter(tags=["Topology"])
+router = APIRouter(prefix="/topology", tags=["Topology"])
 
 @router.get("/", response_model=list[dict[str, Any]])
 async def get_topology_graph(
