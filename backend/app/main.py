@@ -15,11 +15,13 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+import structlog
 
 from app.api.v1.endpoints import assets as assets_router
 from app.core.config import get_settings

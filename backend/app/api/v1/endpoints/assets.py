@@ -157,6 +157,50 @@ async def list_assets(
     )
 
 
+# ── POST /assets/bulk-scan ───────────────────────────────────────────────────
+# NOTE: This MUST come before /{asset_id} routes to prevent "bulk-scan" from being
+# matched as an asset_id parameter in FastAPI's route matching
+
+@router.post(
+    "/bulk-scan",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Trigger scans across a filtered asset subset",
+)
+async def bulk_scan(
+    payload: BulkScanRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    from app.workers.tasks.tls_scan import run_tls_scan  # noqa: PLC0415
+
+    stmt = select(MasterAsset)
+    if payload.asset_ids:
+        stmt = stmt.where(MasterAsset.id.in_(payload.asset_ids))
+    else:
+        if payload.filter_by_status:
+            stmt = stmt.where(MasterAsset.status.in_(payload.filter_by_status))
+        if payload.filter_by_type:
+            stmt = stmt.where(MasterAsset.asset_type.in_(payload.filter_by_type))
+
+    stmt = stmt.limit(payload.max_assets)
+    result = await db.execute(stmt)
+    assets = result.scalars().all()
+
+    dispatched = 0
+    for asset in assets:
+        for scan_type in payload.scan_types:
+            if scan_type == "tls":
+                run_tls_scan.apply_async(
+                    args=[str(asset.id), asset.asset_value],
+                    queue="scanning",
+                )
+                dispatched += 1
+        asset.status = AssetStatus.SCANNING
+
+    await db.commit()
+    logger.info("bulk_scan_dispatched", count=dispatched)
+    return {"dispatched_tasks": dispatched, "assets_targeted": len(assets)}
+
+
 # ── GET /assets/{asset_id} ───────────────────────────────────────────────────
 
 @router.get(
@@ -233,48 +277,6 @@ async def trigger_asset_scan(
         status="queued",
         message=f"Dispatched {len(task_ids)} scan task(s).",
     )
-
-
-# ── POST /assets/bulk-scan ───────────────────────────────────────────────────
-
-@router.post(
-    "/bulk-scan",
-    status_code=status.HTTP_202_ACCEPTED,
-    summary="Trigger scans across a filtered asset subset",
-)
-async def bulk_scan(
-    payload: BulkScanRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> dict:
-    from app.workers.tasks.tls_scan import run_tls_scan  # noqa: PLC0415
-
-    stmt = select(MasterAsset)
-    if payload.asset_ids:
-        stmt = stmt.where(MasterAsset.id.in_(payload.asset_ids))
-    else:
-        if payload.filter_by_status:
-            stmt = stmt.where(MasterAsset.status.in_(payload.filter_by_status))
-        if payload.filter_by_type:
-            stmt = stmt.where(MasterAsset.asset_type.in_(payload.filter_by_type))
-
-    stmt = stmt.limit(payload.max_assets)
-    result = await db.execute(stmt)
-    assets = result.scalars().all()
-
-    dispatched = 0
-    for asset in assets:
-        for scan_type in payload.scan_types:
-            if scan_type == "tls":
-                run_tls_scan.apply_async(
-                    args=[str(asset.id), asset.asset_value],
-                    queue="scanning",
-                )
-                dispatched += 1
-        asset.status = AssetStatus.SCANNING
-
-    await db.commit()
-    logger.info("bulk_scan_dispatched", count=dispatched)
-    return {"dispatched_tasks": dispatched, "assets_targeted": len(assets)}
 
 
 # ── DELETE /assets/{asset_id} ────────────────────────────────────────────────
