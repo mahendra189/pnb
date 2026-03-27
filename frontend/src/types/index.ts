@@ -20,6 +20,13 @@ export interface Asset {
   tags:          string[] | null;
   first_seen:    string;
   last_scanned:  string | null;
+  metadata?:     Record<string, unknown>;
+  open_ports?:   Array<{
+    port: number;
+    protocol: string;
+    service: string;
+    product?: string | null;
+  }>;
 }
 
 // ── TLS Anomaly Alert ─────────────────────────────────────────────────────────

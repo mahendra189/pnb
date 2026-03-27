@@ -307,6 +307,10 @@ export const devAPI = {
     return apiRequest('/dev/simulate-scan', { method: 'POST' });
   },
 
+  async realScan(assetId: string) {
+    return apiRequest(`/dev/real-scan/${assetId}`, { method: 'POST' });
+  },
+
   /**
    * Get forecast data
    */

@@ -16,6 +16,11 @@ async def simulate_scan() -> dict:
     return await live_data_service.simulate_scan()
 
 
+@router.post("/real-scan/{asset_id}", summary="Run a real nmap scan against the selected asset")
+async def real_scan(asset_id: str) -> dict:
+    return await live_data_service.run_real_scan(asset_id)
+
+
 @router.get("/forecast", summary="Get dynamic forecast data")
 async def forecast() -> dict:
     return await live_data_service.get_forecast()

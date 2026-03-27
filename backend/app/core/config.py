@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
     DASHBOARD_REFRESH_SECONDS: int = 5
+    NMAP_TOP_PORTS: int = 20
+    NMAP_TIMEOUT_SECONDS: int = 120
 
     # ── PostgreSQL ───────────────────────────────────────────────────────────
     POSTGRES_SERVER: str = "localhost"

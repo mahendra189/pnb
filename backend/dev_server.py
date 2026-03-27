@@ -183,13 +183,17 @@ async def get_asset(asset_id: str) -> dict:
 
 @stub.post("/assets/{asset_id}/scan", summary="Simulate an on-demand scan for an asset")
 async def trigger_asset_scan(asset_id: str) -> dict:
-    result = await live_data_service.simulate_scan()
+    result = await live_data_service.run_real_scan(asset_id)
     return {
         "task_id": str(uuid.uuid4()),
         "asset_id": asset_id,
-        "scan_types": ["tls"],
-        "status": "queued",
-        "message": f"Simulated scan queued for {result.get('host', asset_id)}",
+        "scan_types": ["nmap", "tls"],
+        "status": "completed",
+        "message": f"Real nmap scan completed for {result.get('host', asset_id)}",
+        "scan_tool": result.get("scan_tool"),
+        "summary": result.get("summary"),
+        "open_ports": result.get("open_ports", []),
+        "risk_score": result.get("risk_score"),
     }
 
 

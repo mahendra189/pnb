@@ -5,11 +5,19 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
 from app.core.config import get_settings
 from app.core.logging import logger
+from app.services.real_scanner import (
+    best_tls_guess,
+    primary_service,
+    risk_from_open_ports,
+    run_nmap_scan,
+    summarize_ports,
+)
 
 settings = get_settings()
 
@@ -198,6 +206,22 @@ class LiveDataService:
                 "previous_risk_score": None,
                 "owner": "KYC",
             },
+            {
+                "asset_value": "127.0.0.1",
+                "asset_type": "ip_address",
+                "organization": "Local Lab",
+                "seed_domain": "local",
+                "status": "pending",
+                "risk_score": 2.2,
+                "hndl_score": 2.4,
+                "tls_version": None,
+                "cipher_suite": None,
+                "key_algorithm": None,
+                "cert_expires_at": None,
+                "last_scanned": None,
+                "previous_risk_score": None,
+                "owner": "Workstation",
+            },
         ]
 
         assets: list[LiveAsset] = []
@@ -349,6 +373,7 @@ class LiveDataService:
             "created_at": asset.created_at.isoformat(),
             "updated_at": asset.updated_at.isoformat(),
             "metadata": asset.metadata,
+            "open_ports": asset.metadata.get("open_ports", []),
         }
 
     async def get_dashboard_snapshot(self) -> dict[str, Any]:
@@ -574,6 +599,71 @@ class LiveDataService:
             "asset_id": asset.id,
             "host": asset.asset_value,
             "source": "demo",
+        }
+
+    async def run_real_scan(self, asset_id: str) -> dict[str, Any]:
+        assets, source = await self.get_all_assets()
+        asset = next((item for item in assets if item.id == asset_id), None)
+        if asset is None:
+            raise ValueError(f"Asset {asset_id} not found.")
+
+        target_host = asset.asset_value
+        parsed = urlparse(target_host)
+        if parsed.scheme and parsed.hostname:
+            target_host = parsed.hostname
+
+        nmap_result = await run_nmap_scan(target_host)
+        open_ports = nmap_result["open_ports"]
+        next_score = risk_from_open_ports(open_ports)
+        next_tls = best_tls_guess(open_ports) or asset.tls_version or "Unknown"
+        now = _utcnow()
+
+        patch_payload = {
+            "status": "scanned",
+            "risk_score": next_score,
+            "hndl_score": round(min(next_score + 0.3, 10.0), 2),
+            "quantum_label": _quantum_label(next_score),
+            "previous_risk_score": asset.risk_score,
+            "tls_version": next_tls,
+            "updated_at": now.isoformat(),
+            "last_scanned": now.isoformat(),
+            "metadata": {
+                **asset.metadata,
+                "open_ports": open_ports,
+                "primary_service": primary_service(open_ports),
+                "scan_source": "nmap",
+                "scan_summary": summarize_ports(open_ports),
+            },
+        }
+
+        if settings.SUPABASE_ENABLED:
+            await self._supabase_request(
+                "PATCH",
+                f"/{settings.SUPABASE_ASSETS_TABLE}",
+                params={"id": f"eq.{asset.id}"},
+                json=patch_payload,
+                headers={"Prefer": "return=minimal"},
+            )
+        else:
+            asset.previous_risk_score = asset.risk_score
+            asset.status = "scanned"
+            asset.risk_score = patch_payload["risk_score"]
+            asset.hndl_score = patch_payload["hndl_score"]
+            asset.quantum_label = patch_payload["quantum_label"]
+            asset.tls_version = patch_payload["tls_version"]
+            asset.last_scanned = now
+            asset.updated_at = now
+            asset.metadata = patch_payload["metadata"]
+
+        return {
+            "status": "completed",
+            "asset_id": asset.id,
+            "host": asset.asset_value,
+            "source": source,
+            "scan_tool": "nmap",
+            "open_ports": open_ports,
+            "risk_score": patch_payload["risk_score"],
+            "summary": patch_payload["metadata"]["scan_summary"],
         }
 
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { assetsAPI } from '../api/client';
+import { assetsAPI, devAPI } from '../api/client';
 
 interface Asset {
   id: string;
@@ -15,6 +15,7 @@ const RunScanPage: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([
     '[01:25:01] Initializing scan engine v2.4.0...',
   ]);
+  const [scanSummary, setScanSummary] = useState<string>('');
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,41 +39,27 @@ const RunScanPage: React.FC = () => {
     
     setIsScanning(true);
     setProgress(0);
+    setScanSummary('');
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Triggering on-demand scan for asset ${selectedAssetId}...`]);
 
     try {
-      const response = await assetsAPI.triggerScan(selectedAssetId, ['tls'], 1);
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Scan job queued. Task ID: ${(response as any).task_id}`]);
-      // Simulate progress for UI feedback
-      simulateProgress();
+      const response = await devAPI.realScan(selectedAssetId);
+      setProgress(100);
+      setLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Real scan completed using ${(response as any).scan_tool}.`,
+        `[${new Date().toLocaleTimeString()}] ${(response as any).summary}`,
+      ]);
+      const ports = ((response as any).open_ports ?? []).map((port: any) => `${port.port}/${port.protocol} ${port.service}`).join(', ');
+      if (ports) {
+        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Open ports: ${ports}`]);
+      }
+      setScanSummary((response as any).summary ?? '');
+      setIsScanning(false);
     } catch (e) {
       setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] FAILED to trigger scan.`]);
       setIsScanning(false);
     }
-  };
-
-  const simulateProgress = () => {
-    let current = 0;
-    const interval = setInterval(() => {
-      current += Math.floor(Math.random() * 8) + 2;
-      if (current >= 100) {
-        current = 100;
-        clearInterval(interval);
-        setIsScanning(false);
-      }
-      setProgress(current);
-      
-      const mockLogs = [
-        `Establishing handshake...`,
-        `Detected: TLS 1.3, Kyber Hybrid.`,
-        `Cryptographic Bill of Materials (CBOM) updated.`,
-        `Risk scoring: Tier 2-Standard.`,
-        `Finalizing report...`,
-      ];
-      if (current % 20 === 0) {
-        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${mockLogs[Math.floor(current / 20) - 1]}`]);
-      }
-    }, 600);
   };
 
   useEffect(() => {
@@ -134,7 +121,7 @@ const RunScanPage: React.FC = () => {
               </div>
               <div className="mt-8 flex items-center justify-between">
                 <p className="text-[10px] text-slate-500 italic max-w-xs leading-relaxed">
-                  Encryption Bill of Materials (CBOM) and PQC-ready labels are automatically generated upon successful validation.
+                  Real scans now use backend `nmap` port discovery, then refresh the live dashboard and scan results views with observed ports and recalculated risk.
                 </p>
                 <button 
                   onClick={startScan}
@@ -178,6 +165,11 @@ const RunScanPage: React.FC = () => {
                     <div ref={logEndRef} />
                   </div>
                 </div>
+                {scanSummary && (
+                  <div className="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-600 dark:text-emerald-300">
+                    {scanSummary}
+                  </div>
+                )}
               </div>
             </div>
           </div>
