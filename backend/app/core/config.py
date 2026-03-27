@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     PROJECT_VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
     DEBUG: bool = False
+    DASHBOARD_REFRESH_SECONDS: int = 5
 
     # ── PostgreSQL ───────────────────────────────────────────────────────────
     POSTGRES_SERVER: str = "localhost"
@@ -72,6 +73,16 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_SCANS: int = 10
     SCAN_TIMEOUT_SECONDS: int = 300
     RATE_LIMIT_PER_MINUTE: int = 60
+
+    # ── Supabase / live-data backend ───────────────────────────────────────
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_ROLE_KEY: str | None = None
+    SUPABASE_SCHEMA: str = "public"
+    SUPABASE_ASSETS_TABLE: str = "assets"
+
+    @property
+    def SUPABASE_ENABLED(self) -> bool:  # noqa: N802
+        return bool(self.SUPABASE_URL and self.SUPABASE_SERVICE_ROLE_KEY)
 
 
 @lru_cache

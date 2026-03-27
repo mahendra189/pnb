@@ -15,6 +15,7 @@
 import {
   CategoryScale,
   Chart as ChartJS,
+  type ChartDataset,
   Filler,
   Legend,
   LinearScale,
@@ -152,7 +153,7 @@ export default function ForecastChart({
       return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
     }) ?? [];
 
-    const ds: ChartJS["data"]["datasets"] = [];
+    const ds: ChartDataset<"line", number[]>[] = [];
 
     effectiveScenarios.forEach((scenario, idx) => {
       const sc = SCENARIOS[idx] ?? SCENARIOS[0];
@@ -175,7 +176,7 @@ export default function ForecastChart({
         fill:            `+1`,          // Fill to next dataset (P10)
         pointRadius:     0,
         tension:         0.4,
-      } as any);
+      });
 
       // P10 lower band (invisible line; provides fill boundary)
       ds.push({
@@ -187,7 +188,7 @@ export default function ForecastChart({
         fill:            false,
         pointRadius:     0,
         tension:         0.4,
-      } as any);
+      });
 
       // P50 median line (prominent)
       ds.push({
@@ -201,7 +202,7 @@ export default function ForecastChart({
         pointRadius: (ctx: any) => (ctx.dataIndex % 4 === 0 ? 3 : 0),
         pointBackgroundColor: sc.baseColor,
         tension:     0.4,
-      } as any);
+      });
     });
 
     return { labels: allDates, datasets: ds };

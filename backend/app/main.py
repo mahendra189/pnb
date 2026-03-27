@@ -24,6 +24,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 import structlog
 
 from app.api.v1.endpoints import assets as assets_router
+from app.api.v1.endpoints import dashboard as dashboard_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging, logger
 from app.db.base import engine
@@ -137,6 +138,10 @@ def _register_middleware(app: FastAPI) -> None:
 def _register_routers(app: FastAPI) -> None:
     app.include_router(
         assets_router.router,
+        prefix=settings.API_V1_STR,
+    )
+    app.include_router(
+        dashboard_router.router,
         prefix=settings.API_V1_STR,
     )
     # Placeholder for future tiers — uncomment as phases progress

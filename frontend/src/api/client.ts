@@ -6,6 +6,12 @@
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const API_V1 = `${API_BASE_URL}/api/v1`;
 
+export function buildWebSocketUrl(path: string): string {
+  const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+  const wsHost = API_BASE_URL.replace('http://', '').replace('https://', '');
+  return `${wsProtocol}://${wsHost}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers?: Record<string, string>;
@@ -262,6 +268,34 @@ export const topologyAPI = {
 };
 
 // ════════════════════════════════════════════════════════════════════════════
+// DASHBOARD API
+// ════════════════════════════════════════════════════════════════════════════
+
+export const dashboardAPI = {
+  async getOverview() {
+    return apiRequest('/dashboard/overview', { method: 'GET' });
+  },
+
+  async listAssets(page: number = 1, pageSize: number = 100) {
+    return apiRequest('/dashboard/assets', {
+      method: 'GET',
+      params: {
+        page,
+        page_size: pageSize,
+      },
+    });
+  },
+
+  async getScanResults() {
+    return apiRequest('/dashboard/scan-results', { method: 'GET' });
+  },
+
+  async getForecast() {
+    return apiRequest('/dashboard/forecast', { method: 'GET' });
+  },
+};
+
+// ════════════════════════════════════════════════════════════════════════════
 // DEV/SIMULATION API
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -291,9 +325,7 @@ export class ComplianceWebSocket {
   private messageHandlers: ((msg: any) => void)[] = [];
 
   constructor() {
-    const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
-    const wsHost = API_BASE_URL.replace('http://', '').replace('https://', '');
-    this.url = `${wsProtocol}://${wsHost}/api/v1/compliance/ws/alerts`;
+    this.url = buildWebSocketUrl('/api/v1/compliance/ws/alerts');
   }
 
   /**
@@ -369,5 +401,6 @@ export default {
   complianceAPI,
   topologyAPI,
   devAPI,
+  dashboardAPI,
   ComplianceWebSocket,
 };

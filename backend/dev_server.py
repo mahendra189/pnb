@@ -29,6 +29,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 # ── Settings ──────────────────────────────────────────────────────────────────
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.api.v1.endpoints import dashboard as dashboard_router
+from app.api.v1.endpoints import dev as dev_router
+from app.services.live_data import live_data_service
 
 settings = get_settings()
 configure_logging(debug=True)
@@ -157,44 +160,37 @@ async def compliance_label(body: dict) -> dict:
 
 
 # ── Assets stub ───────────────────────────────────────────────────────────────
-_SAMPLE_ASSETS = [
-    {
-        "id": str(uuid.uuid4()), "host": "api.pnb.co.in",
-        "risk_band": "critical", "hndl_score": 8.4, "algo": "RSA-2048",
-        "quantum_label": "quantum_vulnerable",
-    },
-    {
-        "id": str(uuid.uuid4()), "host": "netbanking.pnb.co.in",
-        "risk_band": "high", "hndl_score": 6.7, "algo": "ECDH-P256",
-        "quantum_label": "quantum_vulnerable",
-    },
-    {
-        "id": str(uuid.uuid4()), "host": "mobile.pnb.co.in",
-        "risk_band": "medium", "hndl_score": 4.2, "algo": "X25519Kyber768",
-        "quantum_label": "pqc_ready",
-    },
-    {
-        "id": str(uuid.uuid4()), "host": "cdn.pnb.co.in",
-        "risk_band": "low", "hndl_score": 1.1, "algo": "ML-KEM-768",
-        "quantum_label": "fully_quantum_safe",
-    },
-]
-
-
 @stub.get("/assets", summary="List assets (stub)")
-async def list_assets(skip: int = 0, limit: int = 20) -> dict:
+async def list_assets(page: int = 1, page_size: int = 100) -> dict:
+    assets, total, source = await live_data_service.list_assets(page=page, page_size=page_size)
     return {
-        "total": len(_SAMPLE_ASSETS),
-        "items": _SAMPLE_ASSETS[skip : skip + limit],
+        "source": source,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [live_data_service.serialize_asset(asset) for asset in assets],
     }
 
 
 @stub.get("/assets/{asset_id}", summary="Get asset by ID (stub)")
 async def get_asset(asset_id: str) -> dict:
-    for a in _SAMPLE_ASSETS:
-        if a["id"] == asset_id:
-            return a
+    assets, _ = await live_data_service.get_all_assets()
+    for asset in assets:
+        if asset.id == asset_id:
+            return live_data_service.serialize_asset(asset)
     return {"error": "not found", "id": asset_id}
+
+
+@stub.post("/assets/{asset_id}/scan", summary="Simulate an on-demand scan for an asset")
+async def trigger_asset_scan(asset_id: str) -> dict:
+    result = await live_data_service.simulate_scan()
+    return {
+        "task_id": str(uuid.uuid4()),
+        "asset_id": asset_id,
+        "scan_types": ["tls"],
+        "status": "queued",
+        "message": f"Simulated scan queued for {result.get('host', asset_id)}",
+    }
 
 
 # ── Attack path stub ──────────────────────────────────────────────────────────
@@ -245,6 +241,8 @@ async def forecast() -> dict:
 
 
 app.include_router(stub)
+app.include_router(dashboard_router.router, prefix=settings.API_V1_STR)
+app.include_router(dev_router.router, prefix=settings.API_V1_STR)
 
 
 # ── Exception handler ─────────────────────────────────────────────────────────
