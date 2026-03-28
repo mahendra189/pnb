@@ -12,16 +12,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import (
-    DateTime,
-    Enum,
-    ForeignKey,
-    Index,
-    String,
-    Text,
-    UniqueConstraint,
-    func,
-)
+from sqlalchemy import DateTime, Enum, Index, Numeric, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,6 +21,8 @@ from app.db.base import Base
 
 class AssetType(str, enum.Enum):
     DOMAIN = "domain"
+    API = "api"
+    SERVER = "server"
     IP_ADDRESS = "ip_address"
     URL = "url"
     CERTIFICATE = "certificate"
@@ -41,6 +34,8 @@ class AssetStatus(str, enum.Enum):
     PENDING = "pending"          # Discovered, not yet scanned
     SCANNING = "scanning"        # Active scan in progress
     SCANNED = "scanned"          # At least one scan completed
+    APPROVED = "approved"        # Approved after validation
+    FAILED = "failed"            # Latest scan failed
     ERROR = "error"              # Last scan failed
     EXCLUDED = "excluded"        # Explicitly excluded from scanning
 
@@ -99,6 +94,7 @@ class MasterAsset(Base):
         server_default="pending",
     )
     risk_score: Mapped[float | None] = mapped_column(
+        Numeric(6, 2),
         nullable=True,
         comment="Composite PQC risk score [0.0 – 10.0]",
     )
@@ -118,10 +114,7 @@ class MasterAsset(Base):
         nullable=False,
         server_default=func.now(),
     )
-    last_scanned: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
+    last_scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -147,6 +140,42 @@ class MasterAsset(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    state_history: Mapped[list["AssetStateHistory"]] = relationship(
+        "AssetStateHistory",
+        back_populates="asset",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="desc(AssetStateHistory.recorded_at)",
+    )
+    changes: Mapped[list["AssetChange"]] = relationship(
+        "AssetChange",
+        back_populates="asset",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="desc(AssetChange.detected_at)",
+    )
+    scan_summaries: Mapped[list["AssetScanSummary"]] = relationship(
+        "AssetScanSummary",
+        back_populates="asset",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="desc(AssetScanSummary.scan_date)",
+    )
+    scan_tasks: Mapped[list["ScanTask"]] = relationship(
+        "ScanTask",
+        back_populates="asset",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="desc(ScanTask.created_at)",
+    )
+
+    @property
+    def last_scanned(self) -> datetime | None:
+        return self.last_scanned_at
+
+    @last_scanned.setter
+    def last_scanned(self, value: datetime | None) -> None:
+        self.last_scanned_at = value
 
     def __repr__(self) -> str:
         return f"<MasterAsset id={self.id} type={self.asset_type} value={self.asset_value!r}>"

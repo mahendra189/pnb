@@ -72,6 +72,7 @@ class CBOMRecord(Base):
             "asset_id",
             "algorithm_oid",
             "usage_context",
+            "version",
             name="uq_cbom_asset_algorithm_context",
         ),
         Index("ix_cbom_records_asset_id", "asset_id"),
@@ -100,12 +101,13 @@ class CBOMRecord(Base):
         ForeignKey("master_assets.id", ondelete="CASCADE"),
         nullable=False,
     )
-    scan_result_id: Mapped[uuid.UUID | None] = mapped_column(
+    scan_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("tls_scan_results.id", ondelete="SET NULL"),
         nullable=True,
         comment="Source TLS scan if this CBOM entry was derived from a TLS scan",
     )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
     # ── Algorithm identity ──────────────────────────────────────────────────
     algorithm_name: Mapped[str] = mapped_column(

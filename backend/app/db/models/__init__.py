@@ -1,15 +1,19 @@
 from .asset import MasterAsset, AssetType, AssetStatus
-from .tls_scan import TLSScanResult, TLSVersion, ScanSeverity
+from .asset_history import AssetChange, AssetScanSummary, AssetStateHistory
 from .cbom import CBOMRecord, CryptoCategory, PQCStatus
+from .scan_task import ScanTask
+from .tls_scan import TLSScanResult
 
 __all__ = [
     "MasterAsset",
     "AssetType",
     "AssetStatus",
+    "AssetStateHistory",
+    "AssetChange",
+    "AssetScanSummary",
     "TLSScanResult",
-    "TLSVersion",
-    "ScanSeverity",
     "CBOMRecord",
     "CryptoCategory",
     "PQCStatus",
+    "ScanTask",
 ]

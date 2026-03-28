@@ -1,64 +1,76 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { assetsAPI, devAPI } from '../api/client';
+import React, { useEffect, useRef, useState } from 'react';
+import { assetsAPI, buildWebSocketUrl } from '../api/client';
+import { useWebSocket } from '../hooks/useWebSocket';
+import type { AssetMatrixRow } from '../types';
 
-interface Asset {
+interface AssetOption {
   id: string;
-  asset_value: string;
+  asset: string;
   asset_type: string;
+  status?: string;
 }
 
 const RunScanPage: React.FC = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assets, setAssets] = useState<AssetOption[]>([]);
   const [selectedAssetId, setSelectedAssetId] = useState<string>('');
-  const [logs, setLogs] = useState<string[]>([
-    '[01:25:01] Initializing scan engine v2.4.0...',
-  ]);
+  const [logs, setLogs] = useState<string[]>(['[01:25:01] Initializing scan engine v2.4.0...']);
   const [scanSummary, setScanSummary] = useState<string>('');
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Fetch real assets from backend via API client
-    assetsAPI.listAssets(1, 100)
+    assetsAPI.getMatrix()
       .then((response: any) => {
         const items = response.items ?? [];
-        const mappedAssets = items.map((a: any) => ({
-          id: a.id,
-          asset_value: a.asset_value,
-          asset_type: a.asset_type,
+        const mappedAssets = items.map((item: any) => ({
+          id: item.id,
+          asset: item.asset,
+          asset_type: item.asset_type,
+          status: item.status,
         }));
         setAssets(mappedAssets);
         if (mappedAssets.length > 0) setSelectedAssetId(mappedAssets[0].id);
       })
-      .catch(err => console.error("Failed to fetch assets", err));
+      .catch((err) => console.error('Failed to fetch assets', err));
   }, []);
+
+  useWebSocket<{ type: string; data?: { items?: AssetMatrixRow[] } }>({
+    url: buildWebSocketUrl('/api/v1/assets/ws/matrix'),
+    onMessage: (message) => {
+      if (message.type !== 'asset_matrix_updated' || !message.data?.items) return;
+      const selected = message.data.items.find((item) => item.id === selectedAssetId);
+      if (!selected || !isScanning || selected.status !== 'scanned') return;
+      setProgress(100);
+      setLogs((prev) => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Scan completed with ${selected.tls_version ?? 'unknown TLS'} / ${selected.cipher ?? 'unknown cipher'}.`,
+        `[${new Date().toLocaleTimeString()}] PQC status ${selected.pqc_status ?? 'unknown'} and risk ${(selected.risk_score ?? 0).toFixed(1)} recorded in the asset matrix.`,
+      ]);
+      setScanSummary(`Asset matrix refreshed for ${selected.asset} at ${new Date(selected.last_scanned_at ?? Date.now()).toLocaleString()}.`);
+      setIsScanning(false);
+    },
+    reconnectDelay: 3000,
+  });
 
   const startScan = async () => {
     if (isScanning || !selectedAssetId) return;
-    
     setIsScanning(true);
-    setProgress(0);
+    setProgress(25);
     setScanSummary('');
-    setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Triggering on-demand scan for asset ${selectedAssetId}...`]);
-
+    setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] Triggering Celery full scan pipeline for asset ${selectedAssetId}...`]);
     try {
-      const response = await devAPI.realScan(selectedAssetId);
-      setProgress(100);
-      setLogs(prev => [
+      const response: any = await assetsAPI.triggerScan(selectedAssetId, ['tls'], 7);
+      setProgress(50);
+      setLogs((prev) => [
         ...prev,
-        `[${new Date().toLocaleTimeString()}] Real scan completed using ${(response as any).scan_tool}.`,
-        `[${new Date().toLocaleTimeString()}] ${(response as any).summary}`,
+        `[${new Date().toLocaleTimeString()}] Scan task ${response.scan_task_id ?? 'created'} queued as Celery job ${response.task_id}.`,
+        `[${new Date().toLocaleTimeString()}] Waiting for real-time matrix update from websocket...`,
       ]);
-      const ports = ((response as any).open_ports ?? []).map((port: any) => `${port.port}/${port.protocol} ${port.service}`).join(', ');
-      if (ports) {
-        setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Open ports: ${ports}`]);
-      }
-      setScanSummary((response as any).summary ?? '');
+    } catch {
+      setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] FAILED to trigger scan.`]);
       setIsScanning(false);
-    } catch (e) {
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] FAILED to trigger scan.`]);
-      setIsScanning(false);
+      setProgress(0);
     }
   };
 
@@ -66,68 +78,58 @@ const RunScanPage: React.FC = () => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  const selectedAsset = assets.find(a => a.id === selectedAssetId);
+  const selectedAsset = assets.find((asset) => asset.id === selectedAssetId);
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 bg-background-light dark:bg-background-dark font-display">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="flex-1 overflow-y-auto bg-background-light p-8 font-display dark:bg-background-dark">
+      <div className="mx-auto max-w-5xl space-y-6">
         <div>
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1 tracking-tight">Initiate Security Assessment</h3>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">Execute automated vulnerability scanning and PQC-readiness validation on enterprise assets.</p>
+          <h3 className="mb-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Initiate Security Assessment</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Execute the unified full-scan pipeline with history, drift detection, CBOM versioning, and live matrix refresh.</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white dark:bg-panel-dark border border-slate-200 dark:border-primary/20 rounded-xl p-6 shadow-sm">
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Asset Selection</label>
-              <select 
-                value={selectedAssetId}
-                onChange={(e) => setSelectedAssetId(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-primary/5 border border-slate-200 dark:border-primary/20 rounded-lg p-3 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 ring-primary/30"
-              >
-                {assets.map(a => (
-                  <option key={a.id} value={a.id}>{a.asset_value}</option>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-primary/20 dark:bg-panel-dark">
+              <label className="mb-3 block text-xs font-black uppercase tracking-widest text-slate-500">Asset Selection</label>
+              <select value={selectedAssetId} onChange={(e) => setSelectedAssetId(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-900 outline-none ring-primary/30 focus:ring-2 dark:border-primary/20 dark:bg-primary/5 dark:text-slate-100">
+                {assets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>{asset.asset}</option>
                 ))}
               </select>
 
-              <div className="mt-6 flex flex-col md:flex-row gap-4 p-4 bg-slate-100/50 dark:bg-primary/5 rounded-lg border border-slate-200 dark:border-primary/20">
+              <div className="mt-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-slate-100/50 p-4 dark:border-primary/20 dark:bg-primary/5 md:flex-row">
                 <div className="flex-1 space-y-2">
-                  <p className="text-[10px] text-slate-400 font-black uppercase">Live Context</p>
+                  <p className="text-[10px] font-black uppercase text-slate-400">Live Context</p>
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-sm">dns</span>
-                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{selectedAsset?.asset_value || 'Loading...'}</span>
+                    <span className="material-symbols-outlined text-sm text-primary">dns</span>
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{selectedAsset?.asset || 'Loading...'}</span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-slate-500">
-                    <span className="flex items-center gap-1 font-mono"><span className="material-symbols-outlined text-[14px]">public</span> {selectedAsset?.asset_type}</span>
+                    <span className="flex items-center gap-1 font-mono"><span className="material-symbols-outlined text-[14px]">public</span>{selectedAsset?.asset_type}</span>
+                    <span className="rounded bg-slate-200 px-2 py-1 text-[10px] uppercase dark:bg-slate-800">{selectedAsset?.status ?? 'unknown'}</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-panel-dark border border-slate-200 dark:border-primary/20 rounded-xl p-6 shadow-sm">
-              <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Core Modules</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  'NIST-Standard PQC Checker',
-                  'TLS 1.3 Compliance Validation',
-                  'OID/Primitive CBOM Extraction',
-                  'GNN Attack Path Analysis'
-                ].map((option, i) => (
-                  <label key={i} className="flex items-center gap-3 p-3 rounded bg-slate-50 dark:bg-primary/5 border border-slate-200 dark:border-primary/10 hover:border-primary/40 cursor-pointer transition-all">
-                    <input defaultChecked className="rounded border-slate-300 dark:border-primary/30 bg-transparent text-primary focus:ring-primary" type="checkbox"/>
-                    <span className="text-xs font-bold uppercase tracking-tight">{option}</span>
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-primary/20 dark:bg-panel-dark">
+              <label className="mb-4 block text-xs font-black uppercase tracking-widest text-slate-500">Pipeline Modules</label>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {['Nmap service discovery', 'SSLyze TLS analysis', 'HTTP header inspection', 'History + change tracking'].map((option) => (
+                  <label key={option} className="cursor-pointer rounded border border-slate-200 bg-slate-50 p-3 transition-all hover:border-primary/40 dark:border-primary/10 dark:bg-primary/5">
+                    <div className="flex items-center gap-3">
+                      <input defaultChecked className="rounded border-slate-300 bg-transparent text-primary focus:ring-primary dark:border-primary/30" type="checkbox" />
+                      <span className="text-xs font-bold uppercase tracking-tight">{option}</span>
+                    </div>
                   </label>
                 ))}
               </div>
               <div className="mt-8 flex items-center justify-between">
-                <p className="text-[10px] text-slate-500 italic max-w-xs leading-relaxed">
-                  Real scans now use backend `nmap` port discovery, then refresh the live dashboard and scan results views with observed ports and recalculated risk.
+                <p className="max-w-xs text-[10px] italic leading-relaxed text-slate-500">
+                  Each scan writes TLS results, historical snapshots, daily summaries, and drift records before broadcasting the new matrix state.
                 </p>
-                <button 
-                  onClick={startScan}
-                  disabled={isScanning}
-                  className={`bg-primary hover:brightness-110 text-white px-10 py-3 rounded-lg font-black text-xs tracking-tighter shadow-lg shadow-primary/30 transition-all ${isScanning ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
-                >
+                <button onClick={startScan} disabled={isScanning} className={`rounded-lg bg-primary px-10 py-3 text-xs font-black tracking-tighter text-white shadow-lg shadow-primary/30 transition-all hover:brightness-110 ${isScanning ? 'cursor-not-allowed opacity-50' : 'active:scale-95'}`}>
                   <span className="material-symbols-outlined mr-2 align-middle">{isScanning ? 'sync' : 'bolt'}</span>
                   {isScanning ? 'ASSESSING...' : 'INITIALIZE SCAN'}
                 </button>
@@ -135,29 +137,27 @@ const RunScanPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white dark:bg-panel-dark border border-slate-200 dark:border-primary/20 rounded-xl flex flex-col h-full shadow-sm overflow-hidden">
-               <div className="p-4 border-b border-slate-100 dark:border-primary/10 bg-slate-50/50 dark:bg-primary/5">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Live Assessment Terminal</h4>
-               </div>
-               <div className="p-6 flex flex-col flex-1">
+          <div className="space-y-6 lg:col-span-1">
+            <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-primary/20 dark:bg-panel-dark">
+              <div className="border-b border-slate-100 bg-slate-50/50 p-4 dark:border-primary/10 dark:bg-primary/5">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Live Assessment Terminal</h4>
+              </div>
+              <div className="flex flex-1 flex-col p-6">
                 <div className="mb-6">
-                  <div className="flex justify-between items-end mb-2">
-                    <span className={`text-[10px] font-black uppercase ${isScanning ? 'text-primary' : 'text-slate-500'}`}>
-                      {isScanning ? 'Assessors Active' : progress === 100 ? 'Analysis Closed' : 'Standby'}
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-400">{progress}%</span>
+                  <div className="mb-2 flex items-end justify-between">
+                    <span className={`text-[10px] font-black uppercase ${isScanning ? 'text-primary' : 'text-slate-500'}`}>{isScanning ? 'Assessors Active' : progress === 100 ? 'Analysis Closed' : 'Standby'}</span>
+                    <span className="font-mono text-[10px] text-slate-400">{progress}%</span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 dark:bg-primary/10 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-primary/10">
                     <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }}></div>
                   </div>
                 </div>
 
-                <div className="flex-1 bg-slate-900/95 dark:bg-black/40 rounded-lg p-5 font-mono text-[10px] leading-relaxed overflow-y-auto text-emerald-400/90 shadow-inner border border-slate-800 h-[300px]">
+                <div className="h-[300px] flex-1 overflow-y-auto rounded-lg border border-slate-800 bg-slate-900/95 p-5 font-mono text-[10px] leading-relaxed text-emerald-400/90 shadow-inner dark:bg-black/40">
                   <div className="space-y-1.5">
-                    {logs.map((log, i) => (
-                      <p key={i} className="flex gap-2">
-                        <span className="text-slate-600 font-bold tracking-tighter">[{new Date().getHours()}:{new Date().getMinutes()}]</span>
+                    {logs.map((log, index) => (
+                      <p key={index} className="flex gap-2">
+                        <span className="font-bold tracking-tighter text-slate-600">[{new Date().getHours()}:{new Date().getMinutes()}]</span>
                         <span>{log}</span>
                       </p>
                     ))}
@@ -165,11 +165,7 @@ const RunScanPage: React.FC = () => {
                     <div ref={logEndRef} />
                   </div>
                 </div>
-                {scanSummary && (
-                  <div className="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-600 dark:text-emerald-300">
-                    {scanSummary}
-                  </div>
-                )}
+                {scanSummary && <div className="mt-4 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-600 dark:text-emerald-300">{scanSummary}</div>}
               </div>
             </div>
           </div>

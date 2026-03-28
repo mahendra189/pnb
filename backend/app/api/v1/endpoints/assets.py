@@ -12,16 +12,19 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import logger
 from app.db.base import get_db
 from app.db.models.asset import AssetStatus, AssetType, MasterAsset
+from app.db.models.asset_history import AssetChange, AssetStateHistory
+from app.db.models.scan_task import ScanTask
 from app.schemas.asset import (
     AssetListResponse,
     AssetResponse,
@@ -31,11 +34,18 @@ from app.schemas.asset import (
     SeedDomainIngestionResponse,
     TriggerScanRequest,
 )
+from app.schemas.scan import (
+    AssetChangeResponse,
+    AssetHistoryEntryResponse,
+    AssetMatrixResponse,
+)
+from app.services.scan_orchestrator import scan_orchestrator
 from app.workers.tasks.discovery import (
     ingest_seed_domain,
     run_amass_discovery,
     run_shodan_query,
 )
+from app.workers.tasks.tls_scan import full_scan_pipeline_task
 
 router = APIRouter(prefix="/assets", tags=["Asset Discovery"])
 
@@ -170,8 +180,6 @@ async def bulk_scan(
     payload: BulkScanRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
-    from app.workers.tasks.tls_scan import run_tls_scan  # noqa: PLC0415
-
     stmt = select(MasterAsset)
     if payload.asset_ids:
         stmt = stmt.where(MasterAsset.id.in_(payload.asset_ids))
@@ -189,16 +197,70 @@ async def bulk_scan(
     for asset in assets:
         for scan_type in payload.scan_types:
             if scan_type == "tls":
-                run_tls_scan.apply_async(
-                    args=[str(asset.id), asset.asset_value],
+                scan_task = ScanTask(asset_id=asset.id, status="pending")
+                db.add(scan_task)
+                await db.flush()
+                celery_task = full_scan_pipeline_task.apply_async(
+                    args=[str(asset.id), str(scan_task.id)],
                     queue="scanning",
                 )
+                scan_task.celery_task_id = celery_task.id
                 dispatched += 1
         asset.status = AssetStatus.SCANNING
 
     await db.commit()
     logger.info("bulk_scan_dispatched", count=dispatched)
     return {"dispatched_tasks": dispatched, "assets_targeted": len(assets)}
+
+
+@router.get(
+    "/matrix",
+    response_model=AssetMatrixResponse,
+    summary="Return the current master asset matrix view",
+)
+async def get_asset_matrix(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AssetMatrixResponse:
+    matrix = await scan_orchestrator.list_asset_matrix(db)
+    return AssetMatrixResponse.model_validate(matrix)
+
+
+@router.get(
+    "/{asset_id}/history",
+    response_model=list[AssetHistoryEntryResponse],
+    summary="Return historical scan snapshots for an asset",
+)
+async def get_asset_history(
+    asset_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[AssetHistoryEntryResponse]:
+    rows = (
+        await db.execute(
+            select(AssetStateHistory)
+            .where(AssetStateHistory.asset_id == asset_id)
+            .order_by(AssetStateHistory.recorded_at.desc())
+        )
+    ).scalars().all()
+    return [AssetHistoryEntryResponse.model_validate(row) for row in rows]
+
+
+@router.get(
+    "/{asset_id}/changes",
+    response_model=list[AssetChangeResponse],
+    summary="Return field-level changes detected for an asset",
+)
+async def get_asset_changes(
+    asset_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[AssetChangeResponse]:
+    rows = (
+        await db.execute(
+            select(AssetChange)
+            .where(AssetChange.asset_id == asset_id)
+            .order_by(AssetChange.detected_at.desc())
+        )
+    ).scalars().all()
+    return [AssetChangeResponse.model_validate(row) for row in rows]
 
 
 # ── GET /assets/{asset_id} ───────────────────────────────────────────────────
@@ -244,18 +306,19 @@ async def trigger_asset_scan(
     if asset is None:
         raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found.")
 
-    # Import scanning tasks lazily to avoid circular imports
-    from app.workers.tasks.tls_scan import run_tls_scan  # noqa: PLC0415
-
     task_ids: list[str] = []
+    scan_task: ScanTask | None = None
     for scan_type in payload.scan_types:
         if scan_type == "tls":
-            t = run_tls_scan.apply_async(
-                args=[str(asset_id), asset.asset_value],
-                kwargs={"priority": payload.priority},
+            scan_task = ScanTask(asset_id=asset.id, status="pending")
+            db.add(scan_task)
+            await db.flush()
+            t = full_scan_pipeline_task.apply_async(
+                args=[str(asset_id), str(scan_task.id)],
                 queue="scanning",
                 priority=payload.priority,
             )
+            scan_task.celery_task_id = t.id
             task_ids.append(t.id)
         elif scan_type in ("amass", "shodan"):
             if asset.seed_domain:
@@ -272,6 +335,7 @@ async def trigger_asset_scan(
 
     return ScanJobResponse(
         task_id=task_ids[0] if task_ids else "no_tasks_dispatched",
+        scan_task_id=scan_task.id if scan_task else None,
         asset_id=asset_id,
         scan_types=payload.scan_types,
         status="queued",
@@ -298,3 +362,21 @@ async def exclude_asset(
         raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found.")
     asset.status = AssetStatus.EXCLUDED
     await db.commit()
+
+
+@router.websocket("/ws/matrix")
+async def matrix_ws(ws: WebSocket) -> None:
+    await ws.accept()
+    previous_marker: str | None = None
+    try:
+        while True:
+            async for db in get_db():
+                matrix = await scan_orchestrator.list_asset_matrix(db)
+                marker = matrix["updated_at"]
+                if marker != previous_marker:
+                    await ws.send_json({"type": "asset_matrix_updated", "data": matrix})
+                    previous_marker = marker
+                break
+            await asyncio.sleep(2)
+    except WebSocketDisconnect:
+        return

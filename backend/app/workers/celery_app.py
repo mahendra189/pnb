@@ -25,8 +25,6 @@ celery_app = Celery(
     include=[
         "app.workers.tasks.discovery",
         "app.workers.tasks.tls_scan",
-        "app.workers.tasks.cbom",
-        "app.workers.tasks.ai_scoring",
     ],
 )
 
@@ -59,13 +57,10 @@ celery_app.conf.update(
         Queue("default",   Exchange("default"),   routing_key="default"),
         Queue("discovery", Exchange("discovery"), routing_key="discovery"),
         Queue("scanning",  Exchange("scanning"),  routing_key="scanning"),
-        Queue("ai",        Exchange("ai"),        routing_key="ai"),
     ),
     task_routes={
         "app.workers.tasks.discovery.*": {"queue": "discovery"},
         "app.workers.tasks.tls_scan.*":  {"queue": "scanning"},
-        "app.workers.tasks.cbom.*":      {"queue": "scanning"},
-        "app.workers.tasks.ai_scoring.*": {"queue": "ai"},
     },
 
     # Periodic tasks (beat schedule)
@@ -74,11 +69,6 @@ celery_app.conf.update(
             "task": "app.workers.tasks.discovery.refresh_all_assets",
             "schedule": crontab(hour=2, minute=0),  # 02:00 UTC daily
             "options": {"queue": "discovery"},
-        },
-        "rescore-hndl-hourly": {
-            "task": "app.workers.tasks.ai_scoring.rescore_hndl",
-            "schedule": crontab(minute=0),           # top of every hour
-            "options": {"queue": "ai"},
         },
     },
 )

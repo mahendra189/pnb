@@ -21,7 +21,7 @@ if config.config_file_name is not None:
 
 # ── Import ALL models so Alembic can auto-detect changes ─────────────────────
 from app.db.base import Base  # noqa: E402 — must be after imports
-from app.db.models import asset, tls_scan, cbom  # noqa: F401 — side-effect imports
+from app.db.models import asset, asset_history, cbom, scan_task, tls_scan  # noqa: F401 — side-effect imports
 
 target_metadata = Base.metadata
 

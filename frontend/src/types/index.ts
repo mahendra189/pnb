@@ -29,6 +29,61 @@ export interface Asset {
   }>;
 }
 
+export interface AssetMatrixRow {
+  id: string;
+  asset: string;
+  asset_type: string;
+  tls_version: string | null;
+  cipher: string | null;
+  pqc_status: string | null;
+  risk_score: number | null;
+  last_scanned_at: string | null;
+  status: string;
+}
+
+export interface AssetHistoryEntry {
+  id: string;
+  asset_id: string;
+  scan_id: string | null;
+  tls_version: string | null;
+  cipher: string | null;
+  certificate_issuer: string | null;
+  pqc_status: string | null;
+  risk_score: number | null;
+  recorded_at: string;
+}
+
+export interface AssetChangeRecord {
+  id: string;
+  asset_id: string;
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  change_type: "upgrade" | "downgrade" | "modified";
+  detected_at: string;
+}
+
+export interface ReportPoint {
+  period_start: string;
+  average_risk: number;
+  max_risk: number;
+  scanned_assets: number;
+  changed_assets: number;
+  downgrade_count: number;
+}
+
+export interface PeriodReport {
+  period: string;
+  generated_at: string;
+  summary: {
+    total_scans: number;
+    total_changes: number;
+    downgrades: number;
+    average_risk: number;
+  };
+  points: ReportPoint[];
+}
+
 // ── TLS Anomaly Alert ─────────────────────────────────────────────────────────
 export interface TLSAlert {
   type:       "tls_anomaly" | "heartbeat" | "pong";

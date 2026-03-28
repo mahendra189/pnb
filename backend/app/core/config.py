@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str | None = None
     SUPABASE_SERVICE_ROLE_KEY: str | None = None
     SUPABASE_SCHEMA: str = "public"
-    SUPABASE_ASSETS_TABLE: str = "assets"
+    SUPABASE_ASSETS_TABLE: str = "master_assets"
 
     @property
     def SUPABASE_ENABLED(self) -> bool:  # noqa: N802

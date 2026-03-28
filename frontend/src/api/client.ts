@@ -93,6 +93,18 @@ export const assetsAPI = {
     return apiRequest(`/assets/${assetId}`, { method: 'GET' });
   },
 
+  async getMatrix() {
+    return apiRequest('/assets/matrix', { method: 'GET' });
+  },
+
+  async getHistory(assetId: string) {
+    return apiRequest(`/assets/${assetId}/history`, { method: 'GET' });
+  },
+
+  async getChanges(assetId: string) {
+    return apiRequest(`/assets/${assetId}/changes`, { method: 'GET' });
+  },
+
   /**
    * Seed domains ingestion
    */
@@ -295,6 +307,20 @@ export const dashboardAPI = {
   },
 };
 
+export const reportsAPI = {
+  async getDaily() {
+    return apiRequest('/reports/daily', { method: 'GET' });
+  },
+
+  async getWeekly() {
+    return apiRequest('/reports/weekly', { method: 'GET' });
+  },
+
+  async getMonthly() {
+    return apiRequest('/reports/monthly', { method: 'GET' });
+  },
+};
+
 // ════════════════════════════════════════════════════════════════════════════
 // DEV/SIMULATION API
 // ════════════════════════════════════════════════════════════════════════════
@@ -406,5 +432,6 @@ export default {
   topologyAPI,
   devAPI,
   dashboardAPI,
+  reportsAPI,
   ComplianceWebSocket,
 };

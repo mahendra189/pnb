@@ -25,6 +25,7 @@ import structlog
 
 from app.api.v1.endpoints import assets as assets_router
 from app.api.v1.endpoints import dashboard as dashboard_router
+from app.api.v1.endpoints import reports as reports_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging, logger
 from app.db.base import engine
@@ -142,6 +143,10 @@ def _register_routers(app: FastAPI) -> None:
     )
     app.include_router(
         dashboard_router.router,
+        prefix=settings.API_V1_STR,
+    )
+    app.include_router(
+        reports_router.router,
         prefix=settings.API_V1_STR,
     )
     # Placeholder for future tiers — uncomment as phases progress

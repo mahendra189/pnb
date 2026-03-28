@@ -108,6 +108,7 @@ class SeedDomainIngestionResponse(BaseModel):
 
 class ScanJobResponse(BaseModel):
     task_id: str
+    scan_task_id: uuid.UUID | None = None
     asset_id: uuid.UUID
     scan_types: list[str]
     status: str = "queued"
