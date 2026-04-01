@@ -25,7 +25,7 @@ const PQCHandshakePage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#050505] text-white p-8 font-sans">
+        <div className="h-full overflow-y-auto bg-[#050505] text-white p-8 font-sans">
             <div className="max-w-6xl mx-auto">
                 <header className="mb-12">
                     <div className="flex items-center gap-4 mb-2">

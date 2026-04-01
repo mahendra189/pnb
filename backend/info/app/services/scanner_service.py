@@ -57,35 +57,55 @@ async def tls_scan(target: str) -> dict[str, Any]:
         with open(tmp_name, 'r') as f:
             raw_data = json.load(f)
         
-        server_info = raw_data.get("server_scan_results", [{}])[0]
-        scan_result = server_info.get("scan_result", {})
+        raw_data = raw_data or {}
+        server_results = raw_data.get("server_scan_results") or [{}]
+        server_info = server_results[0] if server_results else {}
+        scan_result = server_info.get("scan_result") or {}
         
         # Result Extraction Logic
         tls_versions = []
-        for v_key in ["tls_v1_0", "tls_v1_1", "tls_v1_2", "tls_v1_3"]:
-            v_data = scan_result.get(v_key, {})
-            if v_data and v_data.get("is_supported"):
-                tls_versions.append(v_key.replace("tls_v", "TLS ").replace("_", "."))
+        for v_key in ["tls_1_0_cipher_suites", "tls_1_1_cipher_suites", "tls_1_2_cipher_suites", "tls_1_3_cipher_suites"]:
+            v_data = scan_result.get(v_key) or {}
+            if v_data.get("status") == "COMPLETED":
+                res = v_data.get("result") or {}
+                if res.get("is_tls_version_supported"):
+                    ver = v_key.replace("_cipher_suites", "").replace("tls_", "TLS ").replace("_", ".")
+                    tls_versions.append(ver)
 
         cipher_suites = []
         # Union all accepted cipher names
-        for v_key in ["tls_v1_3", "tls_v1_2"]:
-            v_data = scan_result.get(v_key, {})
-            for suite in v_data.get("accepted_cipher_suites", []):
-                name = suite.get("cipher_suite", {}).get("name")
-                if name and name not in cipher_suites: cipher_suites.append(name)
+        for v_key in ["tls_1_3_cipher_suites", "tls_1_2_cipher_suites"]:
+            v_data = scan_result.get(v_key) or {}
+            if v_data.get("status") == "COMPLETED":
+                res = v_data.get("result") or {}
+                for suite_entry in (res.get("accepted_cipher_suites") or []):
+                    suite_info = suite_entry.get("cipher_suite") or {}
+                    name = suite_info.get("name")
+                    if name and name not in cipher_suites: cipher_suites.append(name)
 
-        cert_chain = scan_result.get("certificate_info", {}).get("certificate_chain", [{}])
-        cert_info = cert_chain[0] if cert_chain else {}
-        
+        cert_info = {}
+        cert_data = scan_result.get("certificate_info") or {}
+        if cert_data.get("status") == "COMPLETED":
+            result_data = cert_data.get("result") or {}
+            deployments = result_data.get("certificate_deployments") or []
+            if deployments:
+                chain = deployments[0].get("received_certificate_chain") or []
+                if chain:
+                    cert_info = chain[0] or {}
+                    
+        issuer = "Unknown"
+        issuer_data = cert_info.get("issuer")
+        if isinstance(issuer_data, dict):
+             issuer = issuer_data.get("rfc4514_string", "Unknown")
+
         return {
             "status": "success",
             "data": {
                 "supported_tls_versions": tls_versions or ["None Detected"],
                 "cipher_suites": cipher_suites[:5] if cipher_suites else ["No suites found"],
                 "certificate_details": {
-                    "issuer": cert_info.get("subject", {}).get("common_name", "Unknown"),
-                    "expiry": cert_info.get("not_after", "Unknown"),
+                    "issuer": issuer,
+                    "expiry": cert_info.get("not_valid_after", "Unknown"),
                     "subject": target
                 },
                 "elliptic_curves": ["X25519", "secp256r1"]
