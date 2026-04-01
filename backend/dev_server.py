@@ -244,6 +244,53 @@ async def forecast() -> dict:
     }
 
 
+# ── Asset Matrix WebSocket stub ────────────────────────────────────────────────
+from fastapi import WebSocket, WebSocketDisconnect
+import asyncio
+
+@app.websocket(f"{settings.API_V1_STR}/assets/ws/matrix")
+async def matrix_ws(ws: WebSocket) -> None:
+    """WebSocket endpoint for real-time asset matrix updates (stub mode)."""
+    await ws.accept()
+    try:
+        while True:
+            # Send synthetic asset matrix update every 2 seconds
+            await ws.send_json({
+                "type": "asset_matrix_updated",
+                "data": {
+                    "items": [
+                        {
+                            "id": "550e8400-e29b-41d4-a716-446655440000",
+                            "asset": "api.pnb.co.in",
+                            "asset_type": "domain",
+                            "tls_version": "1.3",
+                            "cipher": "TLS_AES_256_GCM_SHA384",
+                            "pqc_status": "classical",
+                            "risk_score": 6.5,
+                            "last_scanned_at": "2026-03-30T16:11:00Z",
+                            "status": "scanned",
+                        },
+                        {
+                            "id": "660e8400-e29b-41d4-a716-446655440001",
+                            "asset": "netbanking.pnb.co.in",
+                            "asset_type": "domain",
+                            "tls_version": "1.2",
+                            "cipher": "ECDHE-RSA-AES256-GCM-SHA384",
+                            "pqc_status": "classical",
+                            "risk_score": 7.2,
+                            "last_scanned_at": "2026-03-30T16:10:30Z",
+                            "status": "scanned",
+                        },
+                    ],
+                    "updated_at": "2026-03-30T16:11:16.078533Z",
+                },
+            })
+            await asyncio.sleep(2)
+    except WebSocketDisconnect:
+        log.info("ws_matrix_disconnected")
+        return
+
+
 app.include_router(stub)
 app.include_router(dashboard_router.router, prefix=settings.API_V1_STR)
 app.include_router(dev_router.router, prefix=settings.API_V1_STR)

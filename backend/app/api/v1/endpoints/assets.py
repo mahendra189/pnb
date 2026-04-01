@@ -366,17 +366,30 @@ async def exclude_asset(
 
 @router.websocket("/ws/matrix")
 async def matrix_ws(ws: WebSocket) -> None:
-    await ws.accept()
+    try:
+        await ws.accept()
+    except Exception as exc:
+        logger.error("ws_matrix_accept_failed", error=str(exc))
+        await ws.close(code=1011)
+        return
+    
     previous_marker: str | None = None
     try:
         while True:
-            async for db in get_db():
-                matrix = await scan_orchestrator.list_asset_matrix(db)
-                marker = matrix["updated_at"]
-                if marker != previous_marker:
-                    await ws.send_json({"type": "asset_matrix_updated", "data": matrix})
-                    previous_marker = marker
-                break
+            try:
+                async for db in get_db():
+                    matrix = await scan_orchestrator.list_asset_matrix(db)
+                    marker = matrix["updated_at"]
+                    if marker != previous_marker:
+                        await ws.send_json({"type": "asset_matrix_updated", "data": matrix})
+                        previous_marker = marker
+                    break
+            except Exception as exc:
+                logger.error("ws_matrix_db_error", error=str(exc))
+                await ws.send_json({"type": "error", "message": "Database error", "details": str(exc)})
+                await asyncio.sleep(5)  # Back off on errors
+                continue
             await asyncio.sleep(2)
     except WebSocketDisconnect:
+        logger.info("ws_matrix_disconnected")
         return
