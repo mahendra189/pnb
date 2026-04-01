@@ -21,6 +21,12 @@ const Layout: React.FC = () => {
     { name: 'Architecture Guide', icon: 'architecture', path: '/architecture' },
   ];
 
+  const specialtyScans = [
+    { name: 'TLS Inspection', icon: 'encrypted', path: '/scan/tls' },
+    { name: 'Port Discovery', icon: 'hub', path: '/scan/port' },
+    { name: 'PQC Handshake', icon: 'waves', path: '/scan/pqc' },
+  ];
+
   return (
     <div className="flex h-screen w-full bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-hidden font-display">
       {/* Sidebar Navigation */}
@@ -51,6 +57,24 @@ const Layout: React.FC = () => {
             </Link>
           ))}
           
+          <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4">
+            <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Specialty Scans</div>
+            {specialtyScans.map((item) => (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${
+                  location.pathname === item.path
+                    ? 'bg-primary text-white'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                <span className="text-sm font-medium">{item.name}</span>
+              </Link>
+            ))}
+          </div>
+
           <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4">
             <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Documentation</div>
             {docItems.map((item) => (

@@ -22,6 +22,10 @@ import ReportsPage from './pages/ReportsPage';
 import UserManagementPage from './pages/UserManagementPage';
 import SettingsPage from './pages/SettingsPage';
 
+import TLSScanPage from './pages/TLSScanPage';
+import PortScanPage from './pages/PortScanPage';
+import PQCHandshakePage from './pages/PQCHandshakePage';
+
 export default function App() {
   // Simple auth check simulation (could be expanded)
   const isAuthenticated = true; 
@@ -41,6 +45,9 @@ export default function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<DashboardPage />} />
         <Route path="scan" element={<RunScanPage />} />
+        <Route path="scan/tls" element={<TLSScanPage />} />
+        <Route path="scan/port" element={<PortScanPage />} />
+        <Route path="scan/pqc" element={<PQCHandshakePage />} />
         <Route path="results" element={<ScanResultsPage />} />
         <Route path="assets" element={<AssetManagementPage />} />
         <Route path="cbom" element={<CBOMRecordsPage />} />
