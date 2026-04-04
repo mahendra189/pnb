@@ -302,7 +302,64 @@ services:
       driver: "json-file"
       options: { max-size: "5m", max-file: "2" }
 
-  # ── 8. React Frontend (Nginx reverse proxy) ───────────────────────────────
+  # ── 8. IBM CBOMkit Hyperion (Source code CBOM scanning — Java/Python) ────
+  cbomkit-hyperion:
+    image: ibm/cpe/cbom:hyperion-latest
+    container_name: pqss-cbomkit-hyperion
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8080"    # Bind to loopback, accessed via fastapi-backend
+    environment:
+      LOG_LEVEL: "info"
+      MAX_WORKERS: "2"
+    volumes:
+      - /tmp/cbom-source-scans:/scan-workspace:rw
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout:  10s
+      retries:  5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:   { cpus: "1.0", memory: "512M" }
+        reservations: { cpus: "0.25", memory: "256M" }
+    logging:
+      driver: "json-file"
+      options: { max-size: "10m", max-file: "3" }
+
+  # ── 9. IBM CBOMkit Theia (Container image CBOM scanning) ──────────────────
+  cbomkit-theia:
+    image: ibm/cpe/cbom:theia-latest
+    container_name: pqss-cbomkit-theia
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8002:8080"    # Bind to loopback, accessed via fastapi-backend
+    environment:
+      LOG_LEVEL: "info"
+      MAX_WORKERS: "2"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /tmp/cbom-container-scans:/scan-workspace:rw
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout:  10s
+      retries:  5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:   { cpus: "1.0", memory: "512M" }
+        reservations: { cpus: "0.25", memory: "256M" }
+    logging:
+      driver: "json-file"
+      options: { max-size: "10m", max-file: "3" }
+
+  # ── 10. React Frontend (Nginx reverse proxy) ──────────────────────────────
   react-frontend:
     build:
       context:    ./frontend

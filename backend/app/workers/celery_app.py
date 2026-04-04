@@ -25,6 +25,7 @@ celery_app = Celery(
     include=[
         "app.workers.tasks.discovery",
         "app.workers.tasks.tls_scan",
+        "app.workers.tasks.cbomkit_scans",
     ],
 )
 

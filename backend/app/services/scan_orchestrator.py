@@ -304,6 +304,133 @@ class ScanOrchestrator:
             },
         }
 
+    async def full_scan_pipeline_with_cbomkit(
+        self,
+        db: AsyncSession,
+        asset_id: uuid.UUID,
+        *,
+        repository_url: str | None = None,
+        repository_branch: str = "main",
+        repository_language: str = "python",
+        container_image_name: str | None = None,
+        scan_task_id: uuid.UUID | None = None,
+        celery_task_id: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Extended scan pipeline: network + source code + container scans.
+
+        Orchestrates three parallel discovery methods:
+        1. Network scan (TLS/HTTPS) - existing functionality
+        2. Source code scan (CBOMkit-hyperion) - if repository_url provided
+        3. Container image scan (CBOMkit-theia) - if container_image_name provided
+
+        Then merges all CBOMs with confidence scoring.
+
+        Args:
+            db: Database session
+            asset_id: Master asset UUID
+            repository_url: Git repository URL for source scanning (optional)
+            repository_branch: Repository branch (default: main)
+            repository_language: Repository primary language (default: python)
+            container_image_name: Container image reference for container scanning (optional)
+            scan_task_id: Optional scan task UUID
+            celery_task_id: Optional Celery task UUID
+
+        Returns:
+            Comprehensive scan result with network + source + container + merged CBOM
+        """
+        from app.workers.celery_app import celery_app
+
+        # First, run standard network scan
+        network_result = await self.full_scan_pipeline(
+            db,
+            asset_id,
+            scan_task_id=scan_task_id,
+            celery_task_id=celery_task_id,
+        )
+
+        # Prepare additional scans via Celery if repository or container info provided
+        additional_tasks = []
+
+        if repository_url:
+            from app.workers.tasks.cbomkit_scans import scan_source_repository_task
+
+            source_task = scan_source_repository_task.apply_async(
+                args=(
+                    str(asset_id),
+                    repository_url,
+                    repository_branch,
+                    repository_language,
+                    str(scan_task_id) if scan_task_id else None,
+                ),
+                queue="scanning",
+                track_started=True,
+            )
+            additional_tasks.append(("source_scan", source_task))
+
+        if container_image_name:
+            from app.workers.tasks.cbomkit_scans import scan_container_image_task
+
+            container_task = scan_container_image_task.apply_async(
+                args=(
+                    str(asset_id),
+                    container_image_name,
+                    None,
+                    str(scan_task_id) if scan_task_id else None,
+                ),
+                queue="scanning",
+                track_started=True,
+            )
+            additional_tasks.append(("container_scan", container_task))
+
+        # If we have additional scans, wait a bit for them to complete and then merge
+        task_results = {}
+        if additional_tasks:
+            # Wait up to 30 seconds for additional scans to start/complete
+            import time as time_module
+            max_wait = 30
+            start_wait = time_module.time()
+
+            for scan_type, task in additional_tasks:
+                try:
+                    # Non-blocking check for task completion
+                    result = task.get(timeout=max_wait)
+                    task_results[scan_type] = result
+                except Exception as exc:
+                    # Log but don't fail the entire pipeline
+                    import logging
+                    logging.warning(
+                        f"Additional {scan_type} did not complete in time: {exc}"
+                    )
+
+        # Merge all CBOMs with confidence scoring
+        from app.workers.tasks.cbomkit_scans import merge_and_score_cboms_task
+
+        merge_task = merge_and_score_cboms_task.apply_async(
+            args=(
+                str(asset_id),
+                True,  # include_network_scan
+                bool(repository_url),  # include_source_scan
+                bool(container_image_name),  # include_container_scan
+            ),
+            queue="scanning",
+        )
+
+        try:
+            merge_result = merge_task.get(timeout=60)
+        except Exception as exc:
+            import logging
+            logging.warning(f"CBOM merging did not complete in time: {exc}")
+            merge_result = None
+
+        return {
+            **network_result,
+            "enhanced_with_cbomkit": True,
+            "source_scan": task_results.get("source_scan"),
+            "container_scan": task_results.get("container_scan"),
+            "cbom_merge": merge_result,
+        }
+
     async def mark_task_failed(
         self,
         db: AsyncSession,
