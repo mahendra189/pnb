@@ -217,9 +217,14 @@ async def run_sslyze_scan(target: str) -> dict[str, Any]:
             target,
             timeout=settings.SCAN_TIMEOUT_SECONDS,
         )
-        if code != 0:
+        # sslyze may exit with code 1 due to cryptography deprecation warnings,
+        # but still produces valid JSON output
+        if not output_path.exists():
             raise RuntimeError(stderr.strip() or "sslyze scan failed")
-        payload = json.loads(output_path.read_text())
+        try:
+            payload = json.loads(output_path.read_text())
+        except (json.JSONDecodeError, IOError) as e:
+            raise RuntimeError(f"Failed to parse sslyze output: {e}") from e
         parsed = _parse_sslyze_payload(payload)
         return {"tool": "sslyze", "available": True, **parsed}
 
