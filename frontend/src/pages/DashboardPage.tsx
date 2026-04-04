@@ -46,6 +46,8 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [remediationLoading, setRemediationLoading] = useState(false);
+  const [remediationResult, setRemediationResult] = useState<string | null>(null);
 
   useEffect(() => {
     dashboardAPI.getOverview()
@@ -63,6 +65,29 @@ const DashboardPage: React.FC = () => {
     },
     reconnectDelay: 3000,
   });
+
+  const handleRemediate = async (action: string, reason: string) => {
+    setRemediationLoading(true);
+    try {
+      const response = await fetch('/api/v1/crypto-gateway/remediate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, reason }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setRemediationResult(`✅ Policy updated to ${result.target_policy}. New TLS connections will enforce the updated cryptographic policy.`);
+        setTimeout(() => setRemediationResult(null), 5000);
+      } else {
+        setError(`Failed to remediate: ${response.statusText}`);
+      }
+    } catch (err) {
+      setError(`Error during remediation: ${err}`);
+    } finally {
+      setRemediationLoading(false);
+    }
+  };
 
   const widgets = useMemo(() => {
     const summary = snapshot?.summary;
@@ -181,7 +206,25 @@ const DashboardPage: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="bg-white dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-800 p-6">
-          <h3 className="font-bold text-sm mb-6">Critical Security Alerts</h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-bold text-sm">Critical Security Alerts</h3>
+            {snapshot?.alerts && snapshot.alerts.length > 0 && (
+              <button
+                onClick={() => handleRemediate('enforce-pqc', 'Quantum-unsafe algorithms detected')}
+                disabled={remediationLoading}
+                className="px-3 py-1 bg-red-500 hover:bg-red-600 disabled:bg-slate-400 text-white rounded text-[10px] font-bold transition-colors"
+              >
+                {remediationLoading ? '⏳ Remediating...' : '🛠️ Remediate'}
+              </button>
+            )}
+          </div>
+
+          {remediationResult && (
+            <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-3 mb-4 text-[11px] text-green-600 dark:text-green-300">
+              {remediationResult}
+            </div>
+          )}
+
           <div className="space-y-3">
             {snapshot?.alerts.map((alert, index) => (
               <div key={`${alert.target}-${index}`} className="rounded-lg border border-red-500/20 bg-red-500/5 p-4">

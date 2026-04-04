@@ -1,0 +1,114 @@
+static_resources:
+  listeners:
+  - name: listener_tls_0
+    address:
+      socket_address:
+        protocol: TCP
+        address: 0.0.0.0
+        port_value: 9443
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_http
+          codec_type: HTTP/1.1
+          access_log:
+          - name: envoy.access_loggers.stdout
+            typed_config:
+              "@type": type.googleapis.com/envoy.data.accesslog.v3.StdoutAccessLog
+              format: |
+                [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+                %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT%
+                "%DURATION%" "%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%"
+                "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%"
+                "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%"
+                "TLS_VERSION:%SSL_PROTOCOL%" "CIPHER:%SSL_CIPHER%"
+          http_filters:
+          # 1. Authorization filter: Check OPA policy before forwarding
+          - name: envoy.ext_authz
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+              transport_socket_match_substitute: /crypto-gateway/opa-authz
+              with_request_body: true
+              failure_mode_allow: false  # Deny on authz failure
+              grpc_service:
+                envoy_grpc:
+                  cluster_name: opa_grpc
+                timeout: 2s
+              check_settings:
+                context_extensions:
+                  crypto-check: "true"
+
+          # 2. Router: Forward to backend service
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          common_tls_context:
+            tls_certificates:
+            - certificate_chain:
+                filename: /etc/envoy/certs/server.crt
+              private_key:
+                filename: /etc/envoy/certs/server.key
+            # Control allowed cipher suites and TLS versions
+            tls_params:
+              tls_minimum_protocol_version: TLSv1_2
+              tls_maximum_protocol_version: TLSv1_3
+              # NIST-approved + PQC-ready cipher suites
+              cipher_suites:
+              - "ECDHE-ECDSA-AES256-GCM-SHA384"
+              - "ECDHE-RSA-AES256-GCM-SHA384"
+              - "ECDHE-ECDSA-CHACHA20-POLY1305"
+              - "ECDHE-RSA-CHACHA20-POLY1305"
+
+  clusters:
+  # Backend HTTPS server (crypto policy test target)
+  - name: backend_https
+    type: STRICT_DNS
+    connect_timeout: 10s
+    lb_policy: ROUND_ROBIN
+    transport_socket:
+      name: envoy.transport_sockets.tls
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.transport_sockets.client.v3.ClientTlsContext
+        common_tls_context:
+          validation_context:
+            # In demo mode: disabled (self-signed certs)
+            skip_client_cert_validation: true
+    load_assignment:
+      cluster_name: backend_https
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: test-https-server
+                port_value: 8443
+
+  # OPA (Open Policy Agent) - gRPC service for authorization
+  - name: opa_grpc
+    type: STRICT_DNS
+    connect_timeout: 5s
+    lb_policy: ROUND_ROBIN
+    http2_protocol_options: {}
+    load_assignment:
+      cluster_name: opa_grpc
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: opa-policy-engine
+                port_value: 9191
+
+admin:
+  address:
+    socket_address:
+      protocol: TCP
+      address: 0.0.0.0
+      port_value: 9901
