@@ -36,19 +36,19 @@ export const ScanControl: React.FC<ScanControlProps> = ({ assetId, assetName, on
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFrequency, setSelectedFrequency] = useState<number | null>(null);
-  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
 
   // Poll scan status
   useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+
     const fetchStatus = async () => {
       try {
-        const response = await assetsAPI.getScanStatus(assetId);
+        const response = (await assetsAPI.getScanStatus(assetId)) as ScanStatus;
         setScanStatus(response);
         
         // Stop polling if scan is complete
-        if (!response.is_scanning && pollInterval) {
-          clearInterval(pollInterval);
-          setPollInterval(null);
+        if (!response.is_scanning && interval) {
+          clearInterval(interval);
           if (onScanComplete) onScanComplete();
         }
       } catch (err) {
@@ -59,9 +59,8 @@ export const ScanControl: React.FC<ScanControlProps> = ({ assetId, assetName, on
     // Initial fetch
     fetchStatus();
 
-    // Set up polling interval only if scanning
-    const interval = setInterval(fetchStatus, 2000);
-    setPollInterval(interval);
+    // Set up polling interval
+    interval = setInterval(fetchStatus, 2000);
 
     return () => {
       if (interval) clearInterval(interval);
@@ -73,7 +72,7 @@ export const ScanControl: React.FC<ScanControlProps> = ({ assetId, assetName, on
     setError(null);
     
     try {
-      const response = await assetsAPI.startScan(assetId);
+      const response = (await assetsAPI.startScan(assetId)) as { is_scanning?: boolean; progress?: number };
       console.log('Scan started:', response);
       setScanStatus({
         asset_id: assetId,
@@ -94,7 +93,7 @@ export const ScanControl: React.FC<ScanControlProps> = ({ assetId, assetName, on
 
   const handleSetFrequency = async (frequency: number) => {
     try {
-      const response = await assetsAPI.setScanSchedule(assetId, frequency);
+      const response = (await assetsAPI.setScanSchedule(assetId, frequency)) as { next_scan_at: string };
       setSelectedFrequency(frequency);
       setScanStatus((prev) =>
         prev

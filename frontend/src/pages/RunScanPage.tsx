@@ -18,6 +18,9 @@ const RunScanPage: React.FC = () => {
   const [selectedAssetId, setSelectedAssetId] = useState<string>('');
   const [logs, setLogs] = useState<string[]>(['[01:25:01] Initializing scan engine v2.4.0...']);
   const [scanSummary, setScanSummary] = useState<string>('');
+  const [checkedModules, setCheckedModules] = useState<Set<string>>(
+    new Set(['Nmap service discovery', 'SSLyze TLS analysis', 'HTTP header inspection', 'History + change tracking'])
+  );
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,20 +62,32 @@ const RunScanPage: React.FC = () => {
     setIsScanning(true);
     setProgress(25);
     setScanSummary('');
-    setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] Triggering Celery full scan pipeline for asset ${selectedAssetId}...`]);
+    setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] Starting parallel hybrid scan for asset ${selectedAssetId}...`]);
     try {
-      const response: any = await assetsAPI.triggerScan(selectedAssetId, ['tls'], 7);
+      const response = (await assetsAPI.startScan(selectedAssetId)) as any;
       setProgress(50);
       setLogs((prev) => [
         ...prev,
-        `[${new Date().toLocaleTimeString()}] Scan task ${response.scan_task_id ?? 'created'} queued as Celery job ${response.task_id}.`,
-        `[${new Date().toLocaleTimeString()}] Waiting for real-time matrix update from websocket...`,
+        `[${new Date().toLocaleTimeString()}] Scan task ${response.scan_task_id} queued as Celery job ${response.task_id}.`,
+        `[${new Date().toLocaleTimeString()}] Running parallel: SSLyze (TLS), Nmap (ports), PQC checker...`,
       ]);
-    } catch {
-      setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] FAILED to trigger scan.`]);
+    } catch (err) {
+      setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] FAILED to trigger scan: ${err}`]);
       setIsScanning(false);
       setProgress(0);
     }
+  };
+
+  const toggleModule = (moduleName: string) => {
+    setCheckedModules((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(moduleName)) {
+        newSet.delete(moduleName);
+      } else {
+        newSet.add(moduleName);
+      }
+      return newSet;
+    });
   };
 
   useEffect(() => {
@@ -115,7 +130,7 @@ const RunScanPage: React.FC = () => {
 
             {/* Legacy scan interface (kept for reference) */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-primary/20 dark:bg-panel-dark">
-              <label className="mb-3 block text-xs font-black uppercase tracking-widest text-slate-500">Legacy Full Scan Pipeline</label>
+              <label className="mb-3 block text-xs font-black uppercase tracking-widest text-slate-500">Quick Scan (Legacy)</label>
               <button
                 onClick={startScan}
                 disabled={isScanning || !selectedAssetId}
@@ -125,34 +140,24 @@ const RunScanPage: React.FC = () => {
                     : 'bg-secondary text-white hover:bg-secondary-dark'
                 }`}
               >
-                {isScanning ? 'Scanning...' : 'Start Legacy Full Scan'}
+                {isScanning ? 'Scanning...' : 'Start Quick Scan'}
               </button>
-            </div>
-          </div>
-
-          {/* Logs panel */}
-              <div className="mt-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-slate-100/50 p-4 dark:border-primary/20 dark:bg-primary/5 md:flex-row">
-                <div className="flex-1 space-y-2">
-                  <p className="text-[10px] font-black uppercase text-slate-400">Live Context</p>
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm text-primary">dns</span>
-                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{selectedAsset?.asset || 'Loading...'}</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-slate-500">
-                    <span className="flex items-center gap-1 font-mono"><span className="material-symbols-outlined text-[14px]">public</span>{selectedAsset?.asset_type}</span>
-                    <span className="rounded bg-slate-200 px-2 py-1 text-[10px] uppercase dark:bg-slate-800">{selectedAsset?.status ?? 'unknown'}</span>
-                  </div>
-                </div>
-              </div>
+              <p className="mt-2 text-[10px] text-slate-500 dark:text-slate-400">Uses same parallel hybrid scan as ScanControl above</p>
             </div>
 
+            {/* Pipeline Modules */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-primary/20 dark:bg-panel-dark">
               <label className="mb-4 block text-xs font-black uppercase tracking-widest text-slate-500">Pipeline Modules</label>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {['Nmap service discovery', 'SSLyze TLS analysis', 'HTTP header inspection', 'History + change tracking'].map((option) => (
                   <label key={option} className="cursor-pointer rounded border border-slate-200 bg-slate-50 p-3 transition-all hover:border-primary/40 dark:border-primary/10 dark:bg-primary/5">
                     <div className="flex items-center gap-3">
-                      <input defaultChecked className="rounded border-slate-300 bg-transparent text-primary focus:ring-primary dark:border-primary/30" type="checkbox" />
+                      <input 
+                        type="checkbox"
+                        checked={checkedModules.has(option)}
+                        onChange={() => toggleModule(option)}
+                        className="rounded border-slate-300 bg-transparent text-primary focus:ring-primary dark:border-primary/30" 
+                      />
                       <span className="text-xs font-bold uppercase tracking-tight">{option}</span>
                     </div>
                   </label>
@@ -170,7 +175,24 @@ const RunScanPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Right Column: Logs Panel */}
           <div className="space-y-6 lg:col-span-1">
+            {/* Live Context */}
+            <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-slate-100/50 p-4 dark:border-primary/20 dark:bg-primary/5">
+              <div className="flex-1 space-y-2">
+                <p className="text-[10px] font-black uppercase text-slate-400">Live Context</p>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-sm text-primary">dns</span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{selectedAsset?.asset || 'Loading...'}</span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1 font-mono"><span className="material-symbols-outlined text-[14px]">public</span>{selectedAsset?.asset_type}</span>
+                  <span className="rounded bg-slate-200 px-2 py-1 text-[10px] uppercase dark:bg-slate-800">{selectedAsset?.status ?? 'unknown'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Terminal */}
             <div className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-primary/20 dark:bg-panel-dark">
               <div className="border-b border-slate-100 bg-slate-50/50 p-4 dark:border-primary/10 dark:bg-primary/5">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Live Assessment Terminal</h4>
@@ -202,7 +224,7 @@ const RunScanPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+          </div>
       </div>
     </div>
   );
