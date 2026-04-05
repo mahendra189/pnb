@@ -26,6 +26,7 @@ celery_app = Celery(
         "app.workers.tasks.discovery",
         "app.workers.tasks.tls_scan",
         "app.workers.tasks.cbomkit_scans",
+        "app.workers.tasks.hybrid_scan",
     ],
 )
 
@@ -70,6 +71,12 @@ celery_app.conf.update(
             "task": "app.workers.tasks.discovery.refresh_all_assets",
             "schedule": crontab(hour=2, minute=0),  # 02:00 UTC daily
             "options": {"queue": "discovery"},
+        },
+        # Auto-scan scheduled assets every 5 minutes
+        "auto-scan-scheduled-assets": {
+            "task": "app.workers.tasks.hybrid_scan.scan_scheduled_assets_task",
+            "schedule": 300.0,  # Every 5 minutes
+            "options": {"queue": "scanning"},
         },
     },
 )

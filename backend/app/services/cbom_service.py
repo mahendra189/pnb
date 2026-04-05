@@ -24,60 +24,77 @@ class CBOMService:
     @staticmethod
     async def generate_from_tls_scan(
         db: AsyncSession,
-        scan_result: TLSScanResult,
+        asset_id: uuid.UUID,
+        scan_data: dict[str, Any],
+        detection_sources: list[dict[str, Any]] | None = None,
     ) -> int:
         """
-        Derive CBOM records (Algorithm, Key Exchange, Cipher) from a TLS scan result.
+        Derive CBOM records (Algorithm, Key Exchange, Cipher) from scan data.
+        
+        Args:
+            db: Database session
+            asset_id: Asset UUID
+            scan_data: Dict with 'tls_version', 'cipher', 'key_exchange', 'pqc_status'
+            detection_sources: Optional list of detection source info
         """
         new_records: list[CBOMRecord] = []
         current_version = (
             await db.execute(
-                select(func.max(CBOMRecord.version)).where(CBOMRecord.asset_id == scan_result.asset_id)
+                select(func.max(CBOMRecord.version)).where(CBOMRecord.asset_id == asset_id)
             )
         ).scalar_one()
         next_version = (current_version or 0) + 1
         
+        # Extract values from scan_data dict
+        tls_version = scan_data.get("tls_version") if isinstance(scan_data, dict) else scan_data.tls_version
+        cipher = scan_data.get("cipher") if isinstance(scan_data, dict) else scan_data.cipher
+        key_exchange = scan_data.get("key_exchange") if isinstance(scan_data, dict) else scan_data.key_exchange
+        pqc_status_val = scan_data.get("pqc_status") if isinstance(scan_data, dict) else scan_data.pqc_status
+        
+        # Get scan ID if available (for model-based calls)
+        scan_id = scan_data.id if hasattr(scan_data, 'id') else None
+        
         # 1. Protocol Version
-        if scan_result.tls_version:
+        if tls_version:
             proto_record = CBOMRecord(
-                asset_id=scan_result.asset_id,
-                scan_id=scan_result.id,
+                asset_id=asset_id,
+                scan_id=scan_id,
                 version=next_version,
-                algorithm_name=scan_result.tls_version,
+                algorithm_name=tls_version,
                 category=CryptoCategory.PROTOCOL,
-                pqc_status=PQCStatus.CLASSICAL if scan_result.tls_version != "TLSv1.3" else PQCStatus.HYBRID,
+                pqc_status=PQCStatus.CLASSICAL if tls_version != "TLSv1.3" else PQCStatus.HYBRID,
                 usage_context="tls_handshake_protocol",
-                detection_sources=[{"tool": "sslyze", "method": "protocol_discovery"}]
+                detection_sources=detection_sources or [{"tool": "sslyze", "method": "protocol_discovery"}]
             )
             new_records.append(proto_record)
 
         # 2. Cipher Suites (derive symmetric and key exchange)
-        if scan_result.cipher:
-            for suite_name in [scan_result.cipher]:
-                pqc_safe = scan_result.pqc_status in {PQCStatus.SAFE.value, PQCStatus.HYBRID.value}
+        if cipher:
+            for suite_name in [cipher]:
+                pqc_safe = pqc_status_val in {PQCStatus.SAFE.value, PQCStatus.HYBRID.value}
                 cipher_record = CBOMRecord(
-                    asset_id=scan_result.asset_id,
-                    scan_id=scan_result.id,
+                    asset_id=asset_id,
+                    scan_id=scan_id,
                     version=next_version,
                     algorithm_name=suite_name,
                     category=CryptoCategory.SYMMETRIC_CIPHER,
                     pqc_status=PQCStatus.SAFE if pqc_safe else PQCStatus.CLASSICAL,
                     usage_context="tls_cipher_suite",
-                    detection_sources=[{"tool": "sslyze", "method": "handshake_negotiation"}],
+                    detection_sources=detection_sources or [{"tool": "sslyze", "method": "handshake_negotiation"}],
                 )
                 new_records.append(cipher_record)
 
-        if scan_result.key_exchange:
+        if key_exchange:
             new_records.append(
                 CBOMRecord(
-                    asset_id=scan_result.asset_id,
-                    scan_id=scan_result.id,
+                    asset_id=asset_id,
+                    scan_id=scan_id,
                     version=next_version,
-                    algorithm_name=scan_result.key_exchange,
+                    algorithm_name=key_exchange,
                     category=CryptoCategory.KEY_EXCHANGE,
-                    pqc_status=PQCStatus(scan_result.pqc_status or PQCStatus.UNKNOWN.value),
+                    pqc_status=PQCStatus(pqc_status_val or PQCStatus.UNKNOWN.value),
                     usage_context="tls_key_exchange",
-                    detection_sources=[{"tool": "sslyze", "method": "key_exchange_analysis"}],
+                    detection_sources=detection_sources or [{"tool": "sslyze", "method": "key_exchange_analysis"}],
                 )
             )
 
@@ -87,6 +104,7 @@ class CBOMService:
         
         await db.flush()
         return next_version
+
 
     @staticmethod
     async def get_cbom_for_asset(

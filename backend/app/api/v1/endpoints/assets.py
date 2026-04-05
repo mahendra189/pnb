@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
@@ -46,6 +47,8 @@ from app.workers.tasks.discovery import (
     run_shodan_query,
 )
 from app.workers.tasks.tls_scan import full_scan_pipeline_task
+from app.workers.tasks.hybrid_scan import run_hybrid_scan
+from app.db.models.scan_task import ScanTask
 
 router = APIRouter(prefix="/assets", tags=["Asset Discovery"])
 
@@ -362,6 +365,193 @@ async def exclude_asset(
         raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found.")
     asset.status = AssetStatus.EXCLUDED
     await db.commit()
+
+
+# ── POST /scan/start/{asset_id} ──────────────────────────────────────────────
+
+@router.post(
+    "/scan/start/{asset_id}",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Start parallel hybrid scan (SSLyze + Nmap + PQC)",
+)
+async def start_parallel_scan(
+    asset_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """
+    Trigger a parallel hybrid scan of SSLyze (TLS), Nmap (ports), and PQC checker.
+    
+    Returns:
+        - task_id: Celery task ID for the main orchestrator
+        - scan_task_id: Database scan task ID for tracking
+        - asset_id: The asset being scanned
+    """
+    asset = await db.get(MasterAsset, asset_id)
+    if asset is None:
+        raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found")
+    
+    if asset.status == AssetStatus.SCANNING:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Asset {asset_id} is already being scanned"
+        )
+    
+    # Create a scan task record
+    scan_task = ScanTask(
+        asset_id=asset_id,
+        status="pending",
+    )
+    db.add(scan_task)
+    await db.flush()
+    
+    await db.commit()
+    
+    # Trigger the parallel hybrid scan
+    celery_task = run_hybrid_scan.apply_async(
+        args=(str(asset_id), str(scan_task.id)),
+        queue="scanning",
+    )
+    
+    logger.info(
+        "parallel_scan_started",
+        asset_id=str(asset_id),
+        celery_task_id=celery_task.id,
+        scan_task_id=str(scan_task.id),
+    )
+    
+    return {
+        "task_id": celery_task.id,
+        "scan_task_id": str(scan_task.id),
+        "asset_id": str(asset_id),
+        "status": "queued",
+    }
+
+
+# ── GET /scan/status/{asset_id} ──────────────────────────────────────────────
+
+@router.get(
+    "/scan/status/{asset_id}",
+    summary="Get current scan status for an asset",
+)
+async def get_scan_status(
+    asset_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """
+    Retrieve the current scan status and progress for an asset.
+    
+    Returns:
+        - status: One of 'idle', 'scanning', 'completed', 'failed'
+        - current_step: One of 'tls', 'port', 'pqc', 'cbom', or None
+        - progress: Overall progress percentage (0-100)
+        - last_scanned_at: Timestamp of last completed scan
+        - next_scan_at: Scheduled time for next auto-scan (if configured)
+        - scan_frequency_minutes: Auto-scan interval (if configured)
+    """
+    asset = await db.get(MasterAsset, asset_id)
+    if asset is None:
+        raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found")
+    
+    # Get latest scan task
+    result = await db.execute(
+        select(ScanTask)
+        .where(ScanTask.asset_id == asset_id)
+        .order_by(ScanTask.created_at.desc())
+        .limit(1)
+    )
+    latest_task = result.scalar_one_or_none()
+    
+    # Determine current step based on task status
+    current_step = None
+    progress = 0
+    
+    if asset.status == AssetStatus.SCANNING:
+        if latest_task and latest_task.status == "running":
+            # Infer progress based on how long the task has been running
+            if latest_task.started_at:
+                elapsed = (datetime.now(UTC) - latest_task.started_at).total_seconds()
+                if elapsed < 10:
+                    current_step = "tls"
+                    progress = 25
+                elif elapsed < 20:
+                    current_step = "port"
+                    progress = 50
+                elif elapsed < 30:
+                    current_step = "pqc"
+                    progress = 75
+                else:
+                    current_step = "cbom"
+                    progress = 90
+    elif asset.status == AssetStatus.SCANNED:
+        progress = 100
+    
+    # Get scheduling metadata
+    metadata = asset.metadata_ or {}
+    scan_frequency = metadata.get("scan_frequency")  # in minutes
+    next_scan_at = metadata.get("next_scan_at")
+    
+    return {
+        "asset_id": str(asset_id),
+        "status": asset.status.value,
+        "current_step": current_step,
+        "progress": progress,
+        "last_scanned_at": asset.last_scanned_at.isoformat() if asset.last_scanned_at else None,
+        "next_scan_at": next_scan_at,
+        "scan_frequency_minutes": scan_frequency,
+        "is_scanning": asset.status == AssetStatus.SCANNING,
+    }
+
+
+# ── POST /scan/schedule/{asset_id} ───────────────────────────────────────────
+
+@router.post(
+    "/scan/schedule/{asset_id}",
+    summary="Configure auto-scheduling for an asset",
+)
+async def set_scan_schedule(
+    asset_id: uuid.UUID,
+    frequency_minutes: int = 5,
+    db: Annotated[AsyncSession, Depends(get_db)] = None,
+) -> dict:
+    """
+    Configure automatic periodic scanning for an asset.
+    
+    Args:
+        frequency_minutes: Interval between scans (5, 10, or 30 minutes)
+    
+    Returns:
+        - scan_frequency_minutes: Configured frequency
+        - next_scan_at: When the next scan is scheduled
+    """
+    if frequency_minutes not in [5, 10, 30]:
+        raise HTTPException(
+            status_code=400,
+            detail="frequency_minutes must be 5, 10, or 30"
+        )
+    
+    asset = await db.get(MasterAsset, asset_id)
+    if asset is None:
+        raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found")
+    
+    # Update metadata with scan frequency
+    metadata = asset.metadata_ or {}
+    metadata["scan_frequency"] = frequency_minutes
+    metadata["next_scan_at"] = (datetime.now(UTC) + timedelta(minutes=frequency_minutes)).isoformat()
+    asset.metadata_ = metadata
+    
+    await db.commit()
+    
+    logger.info(
+        "scan_schedule_updated",
+        asset_id=str(asset_id),
+        frequency_minutes=frequency_minutes,
+    )
+    
+    return {
+        "asset_id": str(asset_id),
+        "scan_frequency_minutes": frequency_minutes,
+        "next_scan_at": metadata["next_scan_at"],
+    }
 
 
 @router.websocket("/ws/matrix")

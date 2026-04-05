@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { assetsAPI, buildWebSocketUrl } from '../api/client';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { ScanControl } from '../components/scan/ScanControl';
 import type { AssetMatrixRow } from '../types';
 
 interface AssetOption {
@@ -85,19 +86,51 @@ const RunScanPage: React.FC = () => {
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
           <h3 className="mb-1 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Initiate Security Assessment</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Execute the unified full-scan pipeline with history, drift detection, CBOM versioning, and live matrix refresh.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Execute unified parallel scans (TLS, ports, PQC) with auto-scheduling and real-time progress tracking.</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
+            {/* Asset selection */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-primary/20 dark:bg-panel-dark">
               <label className="mb-3 block text-xs font-black uppercase tracking-widest text-slate-500">Asset Selection</label>
-              <select value={selectedAssetId} onChange={(e) => setSelectedAssetId(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-900 outline-none ring-primary/30 focus:ring-2 dark:border-primary/20 dark:bg-primary/5 dark:text-slate-100">
+              <select 
+                value={selectedAssetId} 
+                onChange={(e) => setSelectedAssetId(e.target.value)} 
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-900 outline-none ring-primary/30 focus:ring-2 dark:border-primary/20 dark:bg-primary/5 dark:text-slate-100"
+              >
                 {assets.map((asset) => (
                   <option key={asset.id} value={asset.id}>{asset.asset}</option>
                 ))}
               </select>
+            </div>
 
+            {/* New ScanControl component */}
+            {selectedAssetId && (
+              <ScanControl
+                assetId={selectedAssetId}
+                assetName={selectedAsset?.asset}
+              />
+            )}
+
+            {/* Legacy scan interface (kept for reference) */}
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-primary/20 dark:bg-panel-dark">
+              <label className="mb-3 block text-xs font-black uppercase tracking-widest text-slate-500">Legacy Full Scan Pipeline</label>
+              <button
+                onClick={startScan}
+                disabled={isScanning || !selectedAssetId}
+                className={`w-full rounded-lg px-4 py-2 font-medium transition ${
+                  isScanning || !selectedAssetId
+                    ? 'cursor-not-allowed bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                    : 'bg-secondary text-white hover:bg-secondary-dark'
+                }`}
+              >
+                {isScanning ? 'Scanning...' : 'Start Legacy Full Scan'}
+              </button>
+            </div>
+          </div>
+
+          {/* Logs panel */}
               <div className="mt-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-slate-100/50 p-4 dark:border-primary/20 dark:bg-primary/5 md:flex-row">
                 <div className="flex-1 space-y-2">
                   <p className="text-[10px] font-black uppercase text-slate-400">Live Context</p>

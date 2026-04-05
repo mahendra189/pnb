@@ -160,6 +160,34 @@ export const assetsAPI = {
   async deleteAsset(assetId: string) {
     return apiRequest(`/assets/${assetId}`, { method: 'DELETE' });
   },
+
+  /**
+   * Start parallel hybrid scan (SSLyze + Nmap + PQC)
+   */
+  async startScan(assetId: string) {
+    return apiRequest(`/assets/scan/start/${assetId}`, {
+      method: 'POST',
+    });
+  },
+
+  /**
+   * Get current scan status for an asset
+   */
+  async getScanStatus(assetId: string) {
+    return apiRequest(`/assets/scan/status/${assetId}`, { method: 'GET' });
+  },
+
+  /**
+   * Configure auto-scan schedule for an asset
+   */
+  async setScanSchedule(assetId: string, frequencyMinutes: number) {
+    return apiRequest(`/assets/scan/schedule/${assetId}`, {
+      method: 'POST',
+      params: {
+        frequency_minutes: frequencyMinutes,
+      },
+    });
+  },
 };
 
 // ════════════════════════════════════════════════════════════════════════════
