@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import redis
@@ -204,6 +204,16 @@ def generate_unified_cbom_task(
                 asset = await db.get(MasterAsset, asset_uuid)
                 if asset:
                     asset.status = AssetStatus.SCANNED
+                    asset.last_scanned_at = datetime.now(UTC)
+                    
+                    # Update next_scan_at only on success
+                    metadata = asset.metadata_ or {}
+                    scan_frequency = metadata.get("scan_frequency")
+                    if scan_frequency:
+                        metadata["next_scan_at"] = (datetime.now(UTC) + timedelta(minutes=scan_frequency)).isoformat()
+                        asset.metadata_ = metadata
+                        logger.info("next_scan_scheduled", asset_id=asset_id, next_scan_at=metadata["next_scan_at"])
+                    
                     await db.flush()
 
                 await db.commit()
@@ -283,14 +293,20 @@ def run_hybrid_scan(
                 asset.status = AssetStatus.SCANNING
                 await db.flush()
 
-                # 3. Get/create scan task
+                # 3. Get/create scan task record for tracking
                 if scan_task_id:
                     task = await db.get(ScanTask, uuid.UUID(scan_task_id))
-                    if task:
-                        task.status = "running"
-                        task.started_at = datetime.now(UTC)
-                        task.celery_task_id = self.request.id
-                        await db.flush()
+                else:
+                    task = ScanTask(asset_id=uuid.UUID(asset_id), status="pending")
+                    db.add(task)
+                    await db.flush()
+                    scan_task_id = str(task.id)
+
+                if task:
+                    task.status = "running"
+                    task.started_at = datetime.now(UTC)
+                    task.celery_task_id = self.request.id
+                    await db.flush()
 
                 await db.commit()
 

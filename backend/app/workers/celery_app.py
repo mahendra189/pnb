@@ -48,7 +48,13 @@ celery_app.conf.update(
 
     # Concurrency — adjust per deployment
     worker_concurrency=4,
+    worker_pool="prefork",
     worker_prefetch_multiplier=1,      # Fair scheduling for long-running scans
+
+    # Beat / Redbeat (Dynamic scheduling)
+    beat_scheduler="redbeat.RedBeatScheduler",
+    redbeat_redis_url=settings.CELERY_BROKER_URL,
+    redbeat_lock_timeout=360,
 
     # Rate limiting defaults (individual tasks can override)
     task_default_rate_limit="60/m",
