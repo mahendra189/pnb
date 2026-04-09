@@ -181,3 +181,20 @@ async def pqc_handshake(target: str) -> dict[str, Any]:
         },
         "timestamp": datetime.now().isoformat()
     }
+
+async def combined_scan(target: str) -> dict[str, Any]:
+    """Runs TLS, Port, and PQC scans in parallel and combines results"""
+    tls_task = tls_scan(target)
+    port_task = port_scan(target)
+    pqc_task = pqc_handshake(target)
+    
+    tls_res, port_res, pqc_res = await asyncio.gather(tls_task, port_task, pqc_task)
+    
+    return {
+        "status": "success" if tls_res.get("status") == "success" and port_res.get("status") == "success" and pqc_res.get("status") == "success" else "partial_success",
+        "target": target,
+        "tls": tls_res,
+        "port": port_res,
+        "pqc": pqc_res,
+        "timestamp": datetime.now().isoformat()
+    }

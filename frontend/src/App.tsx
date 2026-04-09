@@ -25,6 +25,7 @@ import SettingsPage from './pages/SettingsPage';
 import TLSScanPage from './pages/TLSScanPage';
 import PortScanPage from './pages/PortScanPage';
 import PQCHandshakePage from './pages/PQCHandshakePage';
+import UnifiedScanPage from './pages/UnifiedScanPage';
 
 export default function App() {
   // Simple auth check simulation (could be expanded)
@@ -45,6 +46,7 @@ export default function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<DashboardPage />} />
         <Route path="scan" element={<RunScanPage />} />
+        <Route path="scan/unified" element={<UnifiedScanPage />} />
         <Route path="scan/tls" element={<TLSScanPage />} />
         <Route path="scan/port" element={<PortScanPage />} />
         <Route path="scan/pqc" element={<PQCHandshakePage />} />

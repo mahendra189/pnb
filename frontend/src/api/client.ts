@@ -335,6 +335,46 @@ export const dashboardAPI = {
   },
 };
 
+export const specialtyScanAPI = {
+  baseUrl: 'http://localhost:8001/api/v1',
+
+  async tlsScan(target: string) {
+    const response = await fetch(`${this.baseUrl}/scan/tls`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target }),
+    });
+    return response.json();
+  },
+
+  async portScan(target: string) {
+    const response = await fetch(`${this.baseUrl}/scan/port`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target }),
+    });
+    return response.json();
+  },
+
+  async pqcScan(target: string) {
+    const response = await fetch(`${this.baseUrl}/scan/pqc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target }),
+    });
+    return response.json();
+  },
+
+  async combinedScan(target: string) {
+    const response = await fetch(`${this.baseUrl}/scan/combined`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target }),
+    });
+    return response.json();
+  },
+};
+
 export const reportsAPI = {
   async getDaily() {
     return apiRequest('/reports/daily', { method: 'GET' });
@@ -461,5 +501,6 @@ export default {
   devAPI,
   dashboardAPI,
   reportsAPI,
+  specialtyScanAPI,
   ComplianceWebSocket,
 };

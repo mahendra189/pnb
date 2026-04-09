@@ -22,6 +22,7 @@ const Layout: React.FC = () => {
   ];
 
   const specialtyScans = [
+    { name: 'Unified Scan', icon: 'bolt', path: '/scan/unified' },
     { name: 'TLS Inspection', icon: 'encrypted', path: '/scan/tls' },
     { name: 'Port Discovery', icon: 'hub', path: '/scan/port' },
     { name: 'PQC Handshake', icon: 'waves', path: '/scan/pqc' },

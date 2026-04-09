@@ -27,3 +27,10 @@ async def scan_pqc(request: ScanRequest):
         return await scanner_service.pqc_handshake(request.target)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/scan/combined")
+async def scan_combined(request: ScanRequest):
+    try:
+        return await scanner_service.combined_scan(request.target)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
