@@ -279,28 +279,34 @@ async def get_unified_cbom(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """
-    Retrieve the latest unified CBOM with confidence scores.
+    Retrieve the latest unified CBOM with confidence scores from persistent storage.
 
     Shows all cryptographic algorithms discovered across all sources,
     with confidence_score indicating how many methods found each algorithm.
     """
-    # Verify asset exists
-    from app.db.models.asset import MasterAsset
+    from app.db.models.cbom import CBOMResult
 
-    asset = await db.get(MasterAsset, asset_id)
-    if not asset:
-        raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found")
+    # Fetch latest persistent result
+    stmt = (
+        select(CBOMResult)
+        .where(CBOMResult.asset_id == asset_id)
+        .order_by(CBOMResult.created_at.desc())
+        .limit(1)
+    )
+    result = await db.execute(stmt)
+    cbom_res = result.scalar_one_or_none()
 
-    # Build unified CBOM on-the-fly
-    unified_cbom = await cbomkit_bridge.merge_cboms_with_confidence(
+    if cbom_res:
+        return cbom_res.unified_cbom
+
+    # Fallback: Build unified CBOM on-the-fly if no persistent record exists
+    return await cbomkit_bridge.merge_cboms_with_confidence(
         db,
         asset_id,
         include_network_scan=True,
         include_source_scan=True,
         include_container_scan=True,
     )
-
-    return unified_cbom
 
 
 @router.get("/{asset_id}/source-scans", response_model=list[dict[str, Any]])

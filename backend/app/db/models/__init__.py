@@ -1,6 +1,6 @@
 from .asset import MasterAsset, AssetType, AssetStatus
 from .asset_history import AssetChange, AssetScanSummary, AssetStateHistory
-from .cbom import CBOMRecord, CryptoCategory, PQCStatus
+from .cbom import CBOMRecord, CBOMResult, CryptoCategory, PQCStatus
 from .scan_task import ScanTask
 from .tls_scan import TLSScanResult
 
@@ -13,6 +13,7 @@ __all__ = [
     "AssetScanSummary",
     "TLSScanResult",
     "CBOMRecord",
+    "CBOMResult",
     "CryptoCategory",
     "PQCStatus",
     "ScanTask",

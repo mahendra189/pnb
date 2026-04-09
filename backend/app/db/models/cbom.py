@@ -217,3 +217,56 @@ class CBOMRecord(Base):
             f"<CBOMRecord id={self.id} algorithm={self.algorithm_name!r}"
             f" pqc={self.pqc_status} asset={self.asset_id}>"
         )
+
+
+class CBOMResult(Base):
+    """
+    Unified CBOM Result — stores the merged, scored CBOM as a single JSONB document.
+    """
+
+    __tablename__ = "cbom_results"
+    __table_args__ = (
+        Index("ix_cbom_results_asset_id", "asset_id"),
+        Index("ix_cbom_results_created_at", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    asset_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("master_assets.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    scan_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("scan_tasks.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    unified_cbom: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        comment="The complete merged CycloneDX CBOM JSON",
+    )
+    confidence_score: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        default=0.0,
+        comment="Aggregated confidence score [0.0 - 100.0]",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    # ── Relationships ────────────────────────────────────────────────────────
+    asset: Mapped["MasterAsset"] = relationship(
+        "MasterAsset",
+    )
+
+    def __repr__(self) -> str:
+        return f"<CBOMResult id={self.id} asset={self.asset_id} score={self.confidence_score}>"
+

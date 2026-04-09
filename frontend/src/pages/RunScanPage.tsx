@@ -109,9 +109,9 @@ const RunScanPage: React.FC = () => {
             {/* Asset selection */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-primary/20 dark:bg-panel-dark">
               <label className="mb-3 block text-xs font-black uppercase tracking-widest text-slate-500">Asset Selection</label>
-              <select 
-                value={selectedAssetId} 
-                onChange={(e) => setSelectedAssetId(e.target.value)} 
+              <select
+                value={selectedAssetId}
+                onChange={(e) => setSelectedAssetId(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-900 outline-none ring-primary/30 focus:ring-2 dark:border-primary/20 dark:bg-primary/5 dark:text-slate-100"
               >
                 {assets.map((asset) => (
@@ -134,11 +134,10 @@ const RunScanPage: React.FC = () => {
               <button
                 onClick={startScan}
                 disabled={isScanning || !selectedAssetId}
-                className={`w-full rounded-lg px-4 py-2 font-medium transition ${
-                  isScanning || !selectedAssetId
+                className={`w-full rounded-lg px-4 py-2 font-medium transition ${isScanning || !selectedAssetId
                     ? 'cursor-not-allowed bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
                     : 'bg-secondary text-white hover:bg-secondary-dark'
-                }`}
+                  }`}
               >
                 {isScanning ? 'Scanning...' : 'Start Quick Scan'}
               </button>
@@ -152,11 +151,11 @@ const RunScanPage: React.FC = () => {
                 {['Nmap service discovery', 'SSLyze TLS analysis', 'HTTP header inspection', 'History + change tracking'].map((option) => (
                   <label key={option} className="cursor-pointer rounded border border-slate-200 bg-slate-50 p-3 transition-all hover:border-primary/40 dark:border-primary/10 dark:bg-primary/5">
                     <div className="flex items-center gap-3">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={checkedModules.has(option)}
                         onChange={() => toggleModule(option)}
-                        className="rounded border-slate-300 bg-transparent text-primary focus:ring-primary dark:border-primary/30" 
+                        className="rounded border-slate-300 bg-transparent text-primary focus:ring-primary dark:border-primary/30"
                       />
                       <span className="text-xs font-bold uppercase tracking-tight">{option}</span>
                     </div>
@@ -224,7 +223,7 @@ const RunScanPage: React.FC = () => {
               </div>
             </div>
           </div>
-          </div>
+        </div>
       </div>
     </div>
   );

@@ -25,6 +25,9 @@ from app.core.config import get_settings
 from app.db.base import AsyncSessionLocal
 from app.db.models.asset import AssetStatus, MasterAsset
 from app.db.models.scan_task import ScanTask
+from app.db.models.cbom import CBOMResult
+from app.db.models.source_scan import SourceScanResult
+from app.db.models.container_scan import ContainerScanResult
 from app.services.cbom_service import CBOMService
 from app.services.cbomkit_bridge import CBOMKitBridge
 from app.services.scan_orchestrator import scan_orchestrator
@@ -365,58 +368,104 @@ async def generate_unified_cbom(
     celery_task_id: str | None = None,
 ) -> dict[str, Any]:
     """
-    Generate unified CBOM from multiple scan sources.
+    Generate unified CBOM from multiple scan sources (Network + Repo + Container).
 
     Args:
         db: Async database session
         asset_id: Master asset UUID
-        scans_by_tool: Dict of {tool_name: scan_result}
+        scans_by_tool: Dict of {tool_name: scan_result} from hybrid scan chord
         scan_task_id: Optional scan task UUID
         celery_task_id: Optional Celery task ID
 
     Returns:
         Dict with CBOM metadata, version, and confidence score
     """
+    from sqlalchemy import select
+
     asset = await db.get(MasterAsset, asset_id)
     if not asset:
         raise ValueError(f"Asset {asset_id} not found")
 
-    # Extract network scan results
+    # 1. Fetch latest CBOMkit results (Source Repos & Container Images)
+    # ── Source Scan
+    source_stmt = select(SourceScanResult).where(
+        SourceScanResult.asset_id == asset_id,
+        SourceScanResult.scan_status == "completed"
+    ).order_by(SourceScanResult.scan_timestamp.desc()).limit(1)
+    
+    # ── Container Scan
+    container_stmt = select(ContainerScanResult).where(
+        ContainerScanResult.asset_id == asset_id,
+        ContainerScanResult.scan_status == "completed"
+    ).order_by(ContainerScanResult.scan_timestamp.desc()).limit(1)
+
+    source_scan = (await db.execute(source_stmt)).scalar_one_or_none()
+    container_scan = (await db.execute(container_stmt)).scalar_one_or_none()
+
+    # 2. Extract network scan results (TLS/Nmap/PQC)
     sslyze_result = scans_by_tool.get("sslyze", {}).get("data", {})
     nmap_result = scans_by_tool.get("nmap", {}).get("data", {})
+    pqc_result = scans_by_tool.get("pqc", {}).get("data", {})
     
-    # Create merged TLS scan for CBOM generation
-    merged_tls = {
-        **sslyze_result,
-        "nmap_data": nmap_result,
-        "tool_sources": list(scans_by_tool.keys()),
+    # 3. Merge into unified structure
+    unified_cbom = {
+        "asset_info": {
+            "id": str(asset_id),
+            "value": asset.asset_value,
+            "type": asset.asset_type.value,
+        },
+        "network": {
+            "tls": sslyze_result,
+            "ports": nmap_result,
+            "pqc_handshake": pqc_result
+        },
+        "source_code": source_scan.raw_cbom_json if source_scan else None,
+        "container": container_scan.raw_cbom_json if container_scan else None,
+        "timestamp": datetime.now(UTC).isoformat(),
+        "discovery_methods": []
     }
 
-    # Generate CBOM version for network discoveries
+    # 4. Calculate confidence score (70-99%)
+    # Base 70% + 5% per successful discovery method
+    discovery_methods = []
+    if scans_by_tool.get("sslyze", {}).get("success"): discovery_methods.append("sslyze_tls")
+    if scans_by_tool.get("nmap", {}).get("success"): discovery_methods.append("nmap_port")
+    if scans_by_tool.get("pqc", {}).get("success"): discovery_methods.append("liboqs_handshake")
+    if source_scan: discovery_methods.append("cbomkit_hyperion_repo")
+    if container_scan: discovery_methods.append("cbomkit_theia_container")
+
+    unified_cbom["discovery_methods"] = discovery_methods
+    
+    # confidence_score: +5% per method, capped at 99%
+    confidence_score = min(70 + (len(discovery_methods) * 5), 99)
+
+    # 5. Persistent storage in cbom_results table
+    cbom_res = CBOMResult(
+        asset_id=asset_id,
+        scan_task_id=scan_task_id,
+        unified_cbom=unified_cbom,
+        confidence_score=float(confidence_score),
+    )
+    db.add(cbom_res)
+
+    # Also trigger standard record derivation for backwards compatibility
+    # (Extracting individual algorithms from TLS for the main records table)
+    merged_tls = {**sslyze_result, "nmap_data": nmap_result}
     version = await CBOMService.generate_from_tls_scan(
         db,
         asset_id,
         merged_tls,
-        detection_sources=[
-            {"tool": tool, "method": "hybrid_scan"}
-            for tool in scans_by_tool.keys()
-            if scans_by_tool[tool].get("success", False)
-        ],
+        detection_sources=[{"tool": m, "method": "hybrid_scan"} for m in discovery_methods]
     )
-
-    # Calculate confidence score (start at 70%, +5% per successful discovery method)
-    successful_methods = sum(
-        1 for r in scans_by_tool.values() if r.get("success", False)
-    )
-    confidence_score = min(70 + (successful_methods * 5), 99)
 
     await db.commit()
 
     return {
         "version": version,
         "confidence_score": confidence_score,
-        "tools_used": list(scans_by_tool.keys()),
-        "generated_at": datetime.now(UTC).isoformat(),
+        "tools_used": discovery_methods,
+        "cbom_result_id": str(cbom_res.id),
+        "generated_at": unified_cbom["timestamp"],
     }
 
 
